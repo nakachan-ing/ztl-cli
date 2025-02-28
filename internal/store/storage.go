@@ -3,7 +3,11 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"strconv"
+
+	"github.com/nakachan-ing/ztl-cli/internal/model"
 )
 
 func LoadJson[T any](filePath string, v *[]T) error {
@@ -27,5 +31,36 @@ func LoadJson[T any](filePath string, v *[]T) error {
 		}
 	}
 
+	return nil
+}
+
+// Insert a new note into the JSON file
+func InsertNoteToJson(note model.Note, config model.Config, noteType string) error {
+
+	notes, noteJsonPath, err := LoadNotes(config)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load to JSON: %w", err)
+	}
+	// Assign a new ID (incremental)
+	newID := 1
+	if len(notes) > 0 {
+		newID = len(notes) + 1
+	}
+	note.SeqID = strconv.Itoa(newID)
+
+	notes = append(notes, note)
+
+	// Serialize JSON
+	jsonBytes, err := json.MarshalIndent(notes, "", "  ")
+	if err != nil {
+		return fmt.Errorf("❌ Failed to convert to JSON: %w", err)
+	}
+
+	err = os.WriteFile(noteJsonPath, jsonBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to write JSON file: %w", err)
+	}
+
+	log.Println("✅ Successfully updated JSON file!")
 	return nil
 }
