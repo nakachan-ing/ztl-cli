@@ -12,3 +12,16 @@ type Note struct {
 	Archived  bool   `json:"archived"`
 	Deleted   bool   `json:"deleted"`
 }
+
+type NoteFrontMatter struct {
+	ID        string   `yaml:"id"`
+	Title     string   `yaml:"title"`
+	NoteType  string   `yaml:"note_type"`
+	Tags      []string `yaml:"tags"`
+	Links     []string `yaml:"links"`
+	Project   string   `yaml:"project"`
+	CreatedAt string   `yaml:"created_at"`
+	UpdatedAt string   `yaml:"updated_at"`
+	Archived  bool     `yaml:"archived"`
+	Deleted   bool     `yaml:"deleted"`
+}
