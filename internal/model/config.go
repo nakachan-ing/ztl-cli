@@ -25,3 +25,32 @@ type Config struct {
 		Exclude    []string `yaml:"exclude"`
 	}
 }
+
+func DefaultConfig() Config {
+	return Config{
+		ZettelDir:   "~/Zettelkasten",
+		Editor:      "vim",
+		JsonDataDir: "~/.config/ztl/data",
+		ArchiveDir:  "~/.config/ztl/archive",
+		Backup: struct {
+			Enable    bool   `yaml:"enable"`
+			Frequency int    `yaml:"frequency"`
+			Retention int    `yaml:"retention"`
+			BackupDir string `yaml:"backup_dir"`
+		}{
+			Enable:    true,
+			Frequency: 7,
+			Retention: 30,
+			BackupDir: "~/.config/ztl/backup",
+		},
+		Trash: struct {
+			Frequency int    `yaml:"frequency"`
+			Retention int    `yaml:"retention"`
+			TrashDir  string `yaml:"trash_dir"`
+		}{
+			Frequency: 7,
+			Retention: 14,
+			TrashDir:  "~/.config/ztl/trash",
+		},
+	}
+}
