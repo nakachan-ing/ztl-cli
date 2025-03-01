@@ -311,11 +311,14 @@ var fleetingListCmd = &cobra.Command{
 					typeColored = text.FgHiGreen.Sprintf("%s", noteType)
 				}
 
+				tagNames := noteTagDisplay[row.ID]
+				tagStr := strings.Join(tagNames, ", ")
+
 				t.AppendRow(table.Row{
-					row.SeqID,   // ノートのID
-					row.Title,   // タイトル
-					typeColored, // タイプ（色付き）
-					// row.Tags,       // タグ
+					row.SeqID,     // ノートのID
+					row.Title,     // タイトル
+					typeColored,   // タイプ（色付き）
+					tagStr,        // タグ
 					row.CreatedAt, // 作成日時
 					row.UpdatedAt, // 更新日時
 					// len(row.Links), // リンクの数
