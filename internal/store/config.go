@@ -42,8 +42,6 @@ func GetConfigPath() (string, error) {
 		}
 		configPath = filepath.Join(homeDir, ".config", "ztl", "config.yaml")
 		log.Printf("⚠️ Failed to get user config directory, using fallback: %s", configPath)
-		fmt.Printf("1: %s\n", homeDir)    //debug
-		fmt.Printf("1: %s\n", configPath) //debug
 	}
 
 	return configPath, nil
