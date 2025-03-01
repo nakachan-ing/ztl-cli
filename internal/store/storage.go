@@ -35,7 +35,7 @@ func LoadJson[T any](filePath string, v *[]T) error {
 }
 
 // Insert a new note into the JSON file
-func InsertNoteToJson(note model.Note, config model.Config, noteType string) error {
+func InsertNoteToJson(note model.Note, config model.Config) error {
 
 	notes, noteJsonPath, err := LoadNotes(config)
 	if err != nil {

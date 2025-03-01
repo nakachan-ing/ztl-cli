@@ -20,15 +20,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var fleetingTags []string
-var fleetingFrom string
-var fleetingTo string
-var fleetingSearchQuery string
-var fleetingPageSize int
-var fleetingTrash bool
-var fleetingArchive bool
+var permanentTags []string
+var permanentFrom string
+var permanentTo string
+var permanentSearchQuery string
+var permanentPageSize int
+var permanentTrash bool
+var permanentArchive bool
 
-func createNewFleetingNote(fleetingTitle string, config model.Config) (string, model.Note, error) {
+func createNewPermanentNote(permanentTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
 	noteId := fmt.Sprintf("%d%02d%02d%02d%02d%02d",
 		t.Year(), t.Month(), t.Day(),
@@ -38,8 +38,9 @@ func createNewFleetingNote(fleetingTitle string, config model.Config) (string, m
 	// Create front matter
 	frontMatter := model.NoteFrontMatter{
 		ID:        noteId,
-		Title:     fleetingTitle,
-		NoteType:  "fleeting",
+		Title:     permanentTitle,
+		NoteType:  "permanent",
+		Tags:      permanentTags,
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
 		Archived:  false,
@@ -66,8 +67,8 @@ func createNewFleetingNote(fleetingTitle string, config model.Config) (string, m
 	note := model.Note{
 		ID:        noteId,
 		SeqID:     "",
-		Title:     fleetingTitle,
-		NoteType:  "fleeting",
+		Title:     permanentTitle,
+		NoteType:  "permanent",
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
 		Archived:  false,
@@ -83,9 +84,9 @@ func createNewFleetingNote(fleetingTitle string, config model.Config) (string, m
 	return filePath, note, nil
 }
 
-// fleetingCmd represents the fleeting command
-var fleetingCmd = &cobra.Command{
-	Use:   "fleeting",
+// permanentCmd represents the permanent command
+var permanentCmd = &cobra.Command{
+	Use:   "permanent",
 	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -93,17 +94,18 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Args:    cobra.ExactArgs(1),
-	Aliases: []string{"f"},
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("permanent called")
+	},
 }
 
-var newFleetingCmd = &cobra.Command{
+var newPermanentCmd = &cobra.Command{
 	Use:     "new [title]",
-	Short:   "Add a new fleeting note",
+	Short:   "Add a new permanent note",
 	Args:    cobra.ExactArgs(1),
 	Aliases: []string{"n"},
 	Run: func(cmd *cobra.Command, args []string) {
-		fleetingTitle := args[0]
+		permanentTitle := args[0]
 
 		config, err := store.LoadConfig()
 		if err != nil {
@@ -119,25 +121,38 @@ var newFleetingCmd = &cobra.Command{
 		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
 		// }
 
-		newFleetingStr, _, err := createNewFleetingNote(fleetingTitle, *config)
+		if len(permanentTags) > 0 {
+			if err := store.CreateNewTag(permanentTags, *config); err != nil {
+				log.Printf("❌ Failed to create tag: %v\n", err)
+				return
+			}
+		}
+
+		newPermanentStr, note, err := createNewPermanentNote(permanentTitle, *config)
 		if err != nil {
 			log.Printf("❌ Failed to create note: %v\n", err)
 			return
 		}
 
-		log.Printf("Opening %q (Title: %q)...", newFleetingStr, fleetingTitle)
+		for _, tagID := range permanentTags {
+			if err := store.InsertNoteTag(note.ID, tagID, *config); err != nil {
+				log.Printf("❌ Failed to insert note-tag relation: %v\n", err)
+			}
+		}
+
+		log.Printf("Opening %q (Title: %q)...", newPermanentStr, permanentTitle)
 		time.Sleep(2 * time.Second)
 
-		err = util.OpenEditor(newFleetingStr, *config)
+		err = util.OpenEditor(newPermanentStr, *config)
 		if err != nil {
 			log.Printf("❌ Failed to open editor: %v\n", err)
 		}
 	},
 }
 
-var fleetingListCmd = &cobra.Command{
+var permanentListCmd = &cobra.Command{
 	Use:     "list [title]",
-	Short:   "List fleeting notes",
+	Short:   "List permanent notes",
 	Args:    cobra.MaximumNArgs(1),
 	Aliases: []string{"ls"},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -182,26 +197,22 @@ var fleetingListCmd = &cobra.Command{
 			noteTagMap[noteTag.NoteID] = append(noteTagMap[noteTag.NoteID], noteTag.TagID)
 		}
 
-		fmt.Printf("1: %v\n", noteTagMap)
-
 		// タグIDからタグ名へのマッピングを作成
 		tagMap := make(map[string]string)
 		for _, tag := range tags {
 			tagMap[tag.ID] = tag.Name
 		}
 
-		fmt.Printf("2: %v\n", tagMap)
-
 		filteredNotes := []model.Note{}
 		noteTagDisplay := make(map[string][]string)
 
 		for _, note := range notes {
 			// Apply filters
-			if fleetingTrash {
+			if permanentTrash {
 				if !note.Deleted {
 					continue
 				}
-			} else if fleetingArchive {
+			} else if permanentArchive {
 				if !note.Archived {
 					continue
 				}
@@ -212,7 +223,7 @@ var fleetingListCmd = &cobra.Command{
 				if note.NoteType == "task" {
 					continue
 				}
-				if note.NoteType != "fleeting" {
+				if note.NoteType != "permanent" {
 					continue
 				}
 
@@ -236,9 +247,8 @@ var fleetingListCmd = &cobra.Command{
 			filteredNotes = append(filteredNotes, note)
 		}
 
-		// Append filtered notes
-		if fleetingSearchQuery != "" {
-			searchResults := util.FullTextSearch(filteredNotes, fleetingSearchQuery)
+		if permanentSearchQuery != "" {
+			searchResults := util.FullTextSearch(filteredNotes, permanentSearchQuery)
 			if len(searchResults) > 0 {
 				filteredNotes = searchResults
 			}
@@ -246,7 +256,7 @@ var fleetingListCmd = &cobra.Command{
 
 		// 検索結果がある場合のみフィルタリング
 		if len(filteredNotes) > 0 {
-			filteredNotes = util.FilterNotes(filteredNotes, fleetingTags, fleetingFrom, fleetingTo, noteTagDisplay)
+			filteredNotes = util.FilterNotes(filteredNotes, permanentTags, permanentFrom, permanentTo, noteTagDisplay)
 		}
 
 		// Handle case where no notes match
@@ -263,14 +273,14 @@ var fleetingListCmd = &cobra.Command{
 		fmt.Println(strings.Repeat("=", 30))
 
 		// `--limit` がない場合は全件表示
-		if fleetingPageSize == -1 {
-			fleetingPageSize = len(filteredNotes)
+		if permanentPageSize == -1 {
+			permanentPageSize = len(filteredNotes)
 		}
 
 		// ページネーションのループ
 		for {
-			start := page * fleetingPageSize
-			end := start + fleetingPageSize
+			start := page * permanentPageSize
+			end := start + permanentPageSize
 
 			// 範囲チェック
 			if start >= len(filteredNotes) {
@@ -290,6 +300,7 @@ var fleetingListCmd = &cobra.Command{
 			t.AppendHeader(table.Row{
 				text.FgGreen.Sprintf("ID"), text.FgGreen.Sprintf("%s", text.Bold.Sprintf("Title")),
 				text.FgGreen.Sprintf("Type"),
+				text.FgGreen.Sprintf("Tags"),
 				text.FgGreen.Sprintf("Created"), text.FgGreen.Sprintf("Updated"),
 			})
 
@@ -311,11 +322,14 @@ var fleetingListCmd = &cobra.Command{
 					typeColored = text.FgHiGreen.Sprintf("%s", noteType)
 				}
 
+				tagNames := noteTagDisplay[row.ID]
+				tagStr := strings.Join(tagNames, ", ")
+
 				t.AppendRow(table.Row{
-					row.SeqID,   // ノートのID
-					row.Title,   // タイトル
-					typeColored, // タイプ（色付き）
-					// row.Tags,       // タグ
+					row.SeqID,     // ノートのID
+					row.Title,     // タイトル
+					typeColored,   // タイプ（色付き）
+					tagStr,        // タグ
 					row.CreatedAt, // 作成日時
 					row.UpdatedAt, // 更新日時
 					// len(row.Links), // リンクの数
@@ -324,7 +338,7 @@ var fleetingListCmd = &cobra.Command{
 
 			t.Render()
 
-			if fleetingPageSize == len(filteredNotes) {
+			if permanentPageSize == len(filteredNotes) {
 				break
 			}
 
@@ -346,15 +360,16 @@ var fleetingListCmd = &cobra.Command{
 }
 
 func init() {
-	fleetingCmd.AddCommand(newFleetingCmd)
-	fleetingCmd.AddCommand(fleetingListCmd)
-	rootCmd.AddCommand(fleetingCmd)
-	fleetingListCmd.Flags().StringSliceVarP(&fleetingTags, "tag", "t", []string{}, "Filter by tags")
-	fleetingListCmd.Flags().StringVar(&fleetingFrom, "from", "", "Filter by start date (YYYY-MM-DD)")
-	fleetingListCmd.Flags().StringVar(&fleetingTo, "to", "", "Filter by end date (YYYY-MM-DD)")
-	fleetingListCmd.Flags().StringVarP(&fleetingSearchQuery, "search", "q", "", "Search by title or content")
-	fleetingListCmd.Flags().IntVar(&fleetingPageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
-	fleetingListCmd.Flags().BoolVar(&fleetingTrash, "trash", false, "Show deleted notes")
-	fleetingListCmd.Flags().BoolVar(&fleetingArchive, "archive", false, "Show archived notes")
+	permanentCmd.AddCommand(newPermanentCmd)
+	permanentCmd.AddCommand(permanentListCmd)
+	rootCmd.AddCommand(permanentCmd)
+	newPermanentCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Specify tags")
+	permanentListCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Filter by tags")
+	permanentListCmd.Flags().StringVar(&permanentFrom, "from", "", "Filter by start date (YYYY-MM-DD)")
+	permanentListCmd.Flags().StringVar(&permanentTo, "to", "", "Filter by end date (YYYY-MM-DD)")
+	permanentListCmd.Flags().StringVarP(&permanentSearchQuery, "search", "q", "", "Search by title or content")
+	permanentListCmd.Flags().IntVar(&permanentPageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
+	permanentListCmd.Flags().BoolVar(&permanentTrash, "trash", false, "Show deleted notes")
+	permanentListCmd.Flags().BoolVar(&permanentArchive, "archive", false, "Show archived notes")
 
 }

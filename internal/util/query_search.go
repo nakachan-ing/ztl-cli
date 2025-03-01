@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -37,7 +38,9 @@ func searchWithRipgrep(notes []model.Note, query string) []model.Note {
 	config, err := store.LoadConfig()
 	if err != nil {
 		log.Printf("❌ Error loading config: %v", err)
+		return nil
 	}
+
 	cmd := exec.Command("rg", "--ignore-case", "--files-with-matches", query)
 
 	// メモファイルのパスを ripgrep に渡す
@@ -50,7 +53,7 @@ func searchWithRipgrep(notes []model.Note, query string) []model.Note {
 	out, err := cmd.Output()
 	if err != nil {
 		log.Printf("❌ Error running ripgrep: %v", err)
-		return notes
+		return nil
 	}
 
 	// ripgrep の結果に含まれるファイルだけを `filteredNotes` に追加
@@ -62,6 +65,7 @@ func searchWithRipgrep(notes []model.Note, query string) []model.Note {
 		}
 	}
 
+	fmt.Printf("📌 Debug: Ripgrep found %d matching notes\n", len(filteredNotes))
 	return filteredNotes
 }
 
@@ -71,7 +75,7 @@ func searchWithGo(notes []model.Note, query string) []model.Note {
 	config, err := store.LoadConfig()
 	if err != nil {
 		log.Printf("❌ Error loading config: %v", err)
-
+		return nil
 	}
 
 	for _, note := range notes {
@@ -88,6 +92,7 @@ func searchWithGo(notes []model.Note, query string) []model.Note {
 		}
 	}
 
+	fmt.Printf("📌 Debug: Go search found %d matching notes\n", len(filteredNotes))
 	return filteredNotes
 }
 
@@ -101,14 +106,14 @@ func contains(slice []string, item string) bool {
 }
 
 // ノートのフィルター処理（タグ + 日付）
-func FilterNotes(notes []model.Note, tags []string, fromDate, toDate string) []model.Note {
+func FilterNotes(notes []model.Note, tags []string, fromDate, toDate string, noteTagDisplay map[string][]string) []model.Note {
 	var filteredNotes []model.Note
 
 	for _, note := range notes {
-		// タグのフィルタリング
-		// if len(tags) > 0 && !hasTags(note.Tags, tags) {
-		// 	continue
-		// }
+		// タグのフィルタリング（noteTagDisplay を使用）
+		if len(tags) > 0 && !hasTags(noteTagDisplay[note.ID], tags) {
+			continue
+		}
 
 		// 日付のフィルタリング
 		if !isWithinDateRange(note.CreatedAt, fromDate, toDate) {
