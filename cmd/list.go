@@ -241,14 +241,4 @@ func init() {
 	listCmd.Flags().BoolVar(&trash, "trash", false, "Show deleted notes")
 	listCmd.Flags().BoolVar(&archive, "archive", false, "Show archived notes")
 	listCmd.Flags().IntVar(&pageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
