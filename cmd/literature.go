@@ -20,15 +20,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var permanentTags []string
-var permanentFrom string
-var permanentTo string
-var permanentSearchQuery string
-var permanentPageSize int
-var permanentTrash bool
-var permanentArchive bool
+var literatureTags []string
+var literatureFrom string
+var literatureTo string
+var literatureSearchQuery string
+var literaturePageSize int
+var literatureTrash bool
+var literatureArchive bool
 
-func createNewPermanentNote(permanentTitle string, config model.Config) (string, model.Note, error) {
+func createNewLiteratureNote(literatureTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
 	noteId := fmt.Sprintf("%d%02d%02d%02d%02d%02d",
 		t.Year(), t.Month(), t.Day(),
@@ -38,9 +38,9 @@ func createNewPermanentNote(permanentTitle string, config model.Config) (string,
 	// Create front matter
 	frontMatter := model.NoteFrontMatter{
 		ID:        noteId,
-		Title:     permanentTitle,
-		NoteType:  "permanent",
-		Tags:      permanentTags,
+		Title:     literatureTitle,
+		NoteType:  "literature",
+		Tags:      literatureTags,
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
 		Archived:  false,
@@ -67,8 +67,8 @@ func createNewPermanentNote(permanentTitle string, config model.Config) (string,
 	note := model.Note{
 		ID:        noteId,
 		SeqID:     "",
-		Title:     permanentTitle,
-		NoteType:  "permanent",
+		Title:     literatureTitle,
+		NoteType:  "literature",
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
 		Archived:  false,
@@ -80,13 +80,13 @@ func createNewPermanentNote(permanentTitle string, config model.Config) (string,
 		return "", model.Note{}, fmt.Errorf("failed to write to JSON file: %w", err)
 	}
 
-	fmt.Printf("✅ Permanent Note %s has been created successfully.\n", filePath)
+	fmt.Printf("✅ Literature Note %s has been created successfully.\n", filePath)
 	return filePath, note, nil
 }
 
-// permanentCmd represents the permanent command
-var permanentCmd = &cobra.Command{
-	Use:   "permanent",
+// literatureCmd represents the literature command
+var literatureCmd = &cobra.Command{
+	Use:   "literature",
 	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -95,16 +95,16 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Args:    cobra.MaximumNArgs(1),
-	Aliases: []string{"z"},
+	Aliases: []string{"lt"},
 }
 
-var newPermanentCmd = &cobra.Command{
+var newLiteratureCmd = &cobra.Command{
 	Use:     "new [title]",
-	Short:   "Add a new permanent note",
+	Short:   "Add a new literature note",
 	Args:    cobra.ExactArgs(1),
 	Aliases: []string{"n"},
 	Run: func(cmd *cobra.Command, args []string) {
-		permanentTitle := args[0]
+		literatureTitle := args[0]
 
 		config, err := store.LoadConfig()
 		if err != nil {
@@ -120,38 +120,38 @@ var newPermanentCmd = &cobra.Command{
 		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
 		// }
 
-		if len(permanentTags) > 0 {
-			if err := store.CreateNewTag(permanentTags, *config); err != nil {
+		if len(literatureTags) > 0 {
+			if err := store.CreateNewTag(literatureTags, *config); err != nil {
 				log.Printf("❌ Failed to create tag: %v\n", err)
 				return
 			}
 		}
 
-		newPermanentStr, note, err := createNewPermanentNote(permanentTitle, *config)
+		newLiteratureStr, note, err := createNewLiteratureNote(literatureTitle, *config)
 		if err != nil {
 			log.Printf("❌ Failed to create note: %v\n", err)
 			return
 		}
 
-		for _, tagID := range permanentTags {
+		for _, tagID := range literatureTags {
 			if err := store.InsertNoteTag(note.ID, tagID, *config); err != nil {
 				log.Printf("❌ Failed to insert note-tag relation: %v\n", err)
 			}
 		}
 
-		log.Printf("Opening %q (Title: %q)...", newPermanentStr, permanentTitle)
+		log.Printf("Opening %q (Title: %q)...", newLiteratureStr, literatureTitle)
 		time.Sleep(2 * time.Second)
 
-		err = util.OpenEditor(newPermanentStr, *config)
+		err = util.OpenEditor(newLiteratureStr, *config)
 		if err != nil {
 			log.Printf("❌ Failed to open editor: %v\n", err)
 		}
 	},
 }
 
-var permanentListCmd = &cobra.Command{
+var literatureListCmd = &cobra.Command{
 	Use:     "list [title]",
-	Short:   "List permanent notes",
+	Short:   "List literature notes",
 	Args:    cobra.MaximumNArgs(1),
 	Aliases: []string{"ls"},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -207,11 +207,11 @@ var permanentListCmd = &cobra.Command{
 
 		for _, note := range notes {
 			// Apply filters
-			if permanentTrash {
+			if literatureTrash {
 				if !note.Deleted {
 					continue
 				}
-			} else if permanentArchive {
+			} else if literatureArchive {
 				if !note.Archived {
 					continue
 				}
@@ -222,7 +222,7 @@ var permanentListCmd = &cobra.Command{
 				if note.NoteType == "task" {
 					continue
 				}
-				if note.NoteType != "permanent" {
+				if note.NoteType != "literature" {
 					continue
 				}
 
@@ -246,8 +246,8 @@ var permanentListCmd = &cobra.Command{
 			filteredNotes = append(filteredNotes, note)
 		}
 
-		if permanentSearchQuery != "" {
-			searchResults := util.FullTextSearch(filteredNotes, permanentSearchQuery)
+		if literatureSearchQuery != "" {
+			searchResults := util.FullTextSearch(filteredNotes, literatureSearchQuery)
 			if len(searchResults) > 0 {
 				filteredNotes = searchResults
 			}
@@ -255,7 +255,7 @@ var permanentListCmd = &cobra.Command{
 
 		// 検索結果がある場合のみフィルタリング
 		if len(filteredNotes) > 0 {
-			filteredNotes = util.FilterNotes(filteredNotes, permanentTags, permanentFrom, permanentTo, noteTagDisplay)
+			filteredNotes = util.FilterNotes(filteredNotes, literatureTags, literatureFrom, literatureTo, noteTagDisplay)
 		}
 
 		// Handle case where no notes match
@@ -272,14 +272,14 @@ var permanentListCmd = &cobra.Command{
 		fmt.Println(strings.Repeat("=", 30))
 
 		// `--limit` がない場合は全件表示
-		if permanentPageSize == -1 {
-			permanentPageSize = len(filteredNotes)
+		if literaturePageSize == -1 {
+			literaturePageSize = len(filteredNotes)
 		}
 
 		// ページネーションのループ
 		for {
-			start := page * permanentPageSize
-			end := start + permanentPageSize
+			start := page * literaturePageSize
+			end := start + literaturePageSize
 
 			// 範囲チェック
 			if start >= len(filteredNotes) {
@@ -337,7 +337,7 @@ var permanentListCmd = &cobra.Command{
 
 			t.Render()
 
-			if permanentPageSize == len(filteredNotes) {
+			if literaturePageSize == len(filteredNotes) {
 				break
 			}
 
@@ -359,16 +359,15 @@ var permanentListCmd = &cobra.Command{
 }
 
 func init() {
-	permanentCmd.AddCommand(newPermanentCmd)
-	permanentCmd.AddCommand(permanentListCmd)
-	rootCmd.AddCommand(permanentCmd)
-	newPermanentCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Specify tags")
-	permanentListCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Filter by tags")
-	permanentListCmd.Flags().StringVar(&permanentFrom, "from", "", "Filter by start date (YYYY-MM-DD)")
-	permanentListCmd.Flags().StringVar(&permanentTo, "to", "", "Filter by end date (YYYY-MM-DD)")
-	permanentListCmd.Flags().StringVarP(&permanentSearchQuery, "search", "q", "", "Search by title or content")
-	permanentListCmd.Flags().IntVar(&permanentPageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
-	permanentListCmd.Flags().BoolVar(&permanentTrash, "trash", false, "Show deleted notes")
-	permanentListCmd.Flags().BoolVar(&permanentArchive, "archive", false, "Show archived notes")
-
+	literatureCmd.AddCommand(newLiteratureCmd)
+	literatureCmd.AddCommand(literatureListCmd)
+	rootCmd.AddCommand(literatureCmd)
+	newLiteratureCmd.Flags().StringSliceVarP(&literatureTags, "tag", "t", []string{}, "Specify tags")
+	literatureListCmd.Flags().StringSliceVarP(&literatureTags, "tag", "t", []string{}, "Filter by tags")
+	literatureListCmd.Flags().StringVar(&literatureFrom, "from", "", "Filter by start date (YYYY-MM-DD)")
+	literatureListCmd.Flags().StringVar(&literatureTo, "to", "", "Filter by end date (YYYY-MM-DD)")
+	literatureListCmd.Flags().StringVarP(&literatureSearchQuery, "search", "q", "", "Search by title or content")
+	literatureListCmd.Flags().IntVar(&literaturePageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
+	literatureListCmd.Flags().BoolVar(&literatureTrash, "trash", false, "Show deleted notes")
+	literatureListCmd.Flags().BoolVar(&literatureArchive, "archive", false, "Show archived notes")
 }
