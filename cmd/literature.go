@@ -688,12 +688,104 @@ var deleteLiteratureCmd = &cobra.Command{
 	},
 }
 
+var archiveLiteratureCmd = &cobra.Command{
+	Use:     "archive [noteID]",
+	Short:   "Archive a fleeting note",
+	Args:    cobra.MaximumNArgs(1),
+	Aliases: []string{"mv"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v", err)
+			os.Exit(1)
+		}
+
+		// Perform cleanup tasks
+		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
+		// }
+		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
+		// }
+
+		// Load notes from JSON
+		notes, notesJsonPath, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Error loading notes from JSON: %v", err)
+			os.Exit(1)
+		}
+
+		found := false
+		for i := range notes {
+			if noteID == notes[i].SeqID {
+				found = true
+
+				originalPath := filepath.Join(config.ZettelDir, notes[i].ID+".md")
+				archivedPath := filepath.Join(config.ArchiveDir, notes[i].ID+".md")
+
+				note, err := os.ReadFile(originalPath)
+				if err != nil {
+					log.Printf("❌ Error reading note file: %v", err)
+					return
+				}
+
+				// Parse front matter
+				frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(note))
+				if err != nil {
+					log.Printf("❌ Error parsing front matter: %v", err)
+					return
+				}
+
+				// Update `deleted:` field
+				updatedFrontMatter := store.UpdateArchivedToFrontMatter(&frontMatter)
+				updatedContent := store.UpdateFrontMatter(updatedFrontMatter, body)
+
+				// Write back to file
+				err = os.WriteFile(originalPath, []byte(updatedContent), 0644)
+				if err != nil {
+					log.Printf("❌ Error writing updated note file: %v", err)
+					return
+				}
+
+				if _, err := os.Stat(config.ArchiveDir); os.IsNotExist(err) {
+					err := os.MkdirAll(config.ArchiveDir, 0755)
+					if err != nil {
+						log.Printf("❌ Failed to create trash directory: %v", err)
+						return
+					}
+				}
+
+				err = os.Rename(originalPath, archivedPath)
+				if err != nil {
+					log.Printf("❌ Error moving note to trash: %v", err)
+				}
+
+				notes[i].Archived = true
+
+				err = store.SaveUpdatedJson(notes, notesJsonPath)
+				if err != nil {
+					log.Printf("❌ Error updating JSON file: %v", err)
+					return
+				}
+
+				log.Printf("✅ Note %s moved to trash: %s", notes[i].ID, archivedPath)
+				break
+			}
+		}
+		if !found {
+			log.Printf("❌ Note with ID %s not found", noteID)
+		}
+	},
+}
+
 func init() {
 	literatureCmd.AddCommand(newLiteratureCmd)
 	literatureCmd.AddCommand(literatureListCmd)
 	literatureCmd.AddCommand(showLiteratureCmd)
 	literatureCmd.AddCommand(editLiteratureCmd)
 	literatureCmd.AddCommand(deleteLiteratureCmd)
+	literatureCmd.AddCommand(archiveLiteratureCmd)
 	rootCmd.AddCommand(literatureCmd)
 	newLiteratureCmd.Flags().StringSliceVarP(&literatureTags, "tag", "t", []string{}, "Specify tags")
 	literatureListCmd.Flags().StringSliceVarP(&literatureTags, "tag", "t", []string{}, "Filter by tags")

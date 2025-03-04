@@ -23,3 +23,7 @@ type TaskFrontMatter struct {
 func (t *TaskFrontMatter) SetDeleted() {
 	t.Deleted = true
 }
+
+func (n *TaskFrontMatter) SetArchived() {
+	n.Archived = true
+}

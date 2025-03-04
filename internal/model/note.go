@@ -29,3 +29,7 @@ type NoteFrontMatter struct {
 func (n *NoteFrontMatter) SetDeleted() {
 	n.Deleted = true
 }
+
+func (n *NoteFrontMatter) SetArchived() {
+	n.Archived = true
+}

@@ -146,3 +146,8 @@ func UpdateDeletedToFrontMatter[T model.Deletable](frontMatter T) T {
 	frontMatter.SetDeleted()
 	return frontMatter
 }
+
+func UpdateArchivedToFrontMatter[T model.Archivable](frontMatter T) T {
+	frontMatter.SetArchived()
+	return frontMatter
+}
