@@ -32,6 +32,7 @@ var literatureSearchQuery string
 var literaturePageSize int
 var literatureTrash bool
 var literatureArchive bool
+var literatureForceDelete bool
 
 func createNewLiteratureNote(literatureTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -618,72 +619,14 @@ var deleteLiteratureCmd = &cobra.Command{
 		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
 		// }
 
-		// Load notes from JSON
-		notes, notesJsonPath, err := store.LoadNotes(*config)
+		if literatureForceDelete {
+			err = store.DeleteNotePermanently(noteID, *config)
+		} else {
+			err = store.MoveNoteToTrash(noteID, *config)
+		}
+
 		if err != nil {
-			log.Printf("❌ Error loading notes from JSON: %v", err)
-			os.Exit(1)
-		}
-
-		found := false
-		for i := range notes {
-			if noteID == notes[i].SeqID {
-				found = true
-
-				originalPath := filepath.Join(config.ZettelDir, notes[i].ID+".md")
-				deletedPath := filepath.Join(config.Trash.TrashDir, notes[i].ID+".md")
-
-				note, err := os.ReadFile(originalPath)
-				if err != nil {
-					log.Printf("❌ Error reading note file: %v", err)
-					return
-				}
-
-				// Parse front matter
-				frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(note))
-				if err != nil {
-					log.Printf("❌ Error parsing front matter: %v", err)
-					return
-				}
-
-				// Update `deleted:` field
-				updatedFrontMatter := store.UpdateDeletedToFrontMatter(&frontMatter)
-				updatedContent := store.UpdateFrontMatter(updatedFrontMatter, body)
-
-				// Write back to file
-				err = os.WriteFile(originalPath, []byte(updatedContent), 0644)
-				if err != nil {
-					log.Printf("❌ Error writing updated note file: %v", err)
-					return
-				}
-
-				if _, err := os.Stat(config.Trash.TrashDir); os.IsNotExist(err) {
-					err := os.MkdirAll(config.Trash.TrashDir, 0755)
-					if err != nil {
-						log.Printf("❌ Failed to create trash directory: %v", err)
-						return
-					}
-				}
-
-				err = os.Rename(originalPath, deletedPath)
-				if err != nil {
-					log.Printf("❌ Error moving note to trash: %v", err)
-				}
-
-				notes[i].Deleted = true
-
-				err = store.SaveUpdatedJson(notes, notesJsonPath)
-				if err != nil {
-					log.Printf("❌ Error updating JSON file: %v", err)
-					return
-				}
-
-				log.Printf("✅ Note %s moved to trash: %s", notes[i].ID, deletedPath)
-				break
-			}
-		}
-		if !found {
-			log.Printf("❌ Note with ID %s not found", noteID)
+			log.Fatalf("❌ %v", err)
 		}
 	},
 }
@@ -795,4 +738,5 @@ func init() {
 	literatureListCmd.Flags().IntVar(&literaturePageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
 	literatureListCmd.Flags().BoolVar(&literatureTrash, "trash", false, "Show deleted notes")
 	literatureListCmd.Flags().BoolVar(&literatureArchive, "archive", false, "Show archived notes")
+	deleteLiteratureCmd.Flags().BoolVarP(&literatureForceDelete, "force", "f", false, "Permanently delete the note")
 }

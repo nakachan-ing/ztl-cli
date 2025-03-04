@@ -34,6 +34,7 @@ var taskPageSize int
 var taskTrash bool
 var taskArchive bool
 var taskMeta bool
+var taskForceDelete bool
 
 func createNewTask(taskTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -101,6 +102,157 @@ func createNewTask(taskTitle string, config model.Config) (string, model.Note, e
 
 	fmt.Printf("✅ Task %s has been created successfully.\n", filePath)
 	return filePath, note, nil
+}
+
+func MoveTaskToTrash(taskID string, config model.Config) error {
+	// `tasks.json` をロード
+	tasks, _, err := store.LoadTasks(config)
+	if err != nil {
+		return fmt.Errorf("❌ Error loading config: %v", err)
+	}
+
+	var noteID string
+	found := false
+
+	for _, task := range tasks {
+		if task.ID == taskID {
+			noteID = task.NoteID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		log.Printf("❌ Task with ID %s not found", taskID)
+	}
+
+	notes, notesJsonPath, err := store.LoadNotes(config)
+	if err != nil {
+		return fmt.Errorf("❌ Error loading notes from JSON: %v", err)
+	}
+
+	found = false
+	for i := range notes {
+		if noteID == notes[i].SeqID {
+			found = true
+
+			originalPath := filepath.Join(config.ZettelDir, notes[i].ID+".md")
+			deletedPath := filepath.Join(config.Trash.TrashDir, notes[i].ID+".md")
+
+			note, err := os.ReadFile(originalPath)
+			if err != nil {
+				return fmt.Errorf("❌ Error reading note file: %v", err)
+			}
+
+			// Parse front matter
+			frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(note))
+			if err != nil {
+				return fmt.Errorf("❌ Error parsing front matter: %v", err)
+			}
+
+			// Update `deleted:` field
+			updatedFrontMatter := store.UpdateDeletedToFrontMatter(&frontMatter)
+			updatedContent := store.UpdateFrontMatter(updatedFrontMatter, body)
+
+			// Write back to file
+			err = os.WriteFile(originalPath, []byte(updatedContent), 0644)
+			if err != nil {
+				return fmt.Errorf("❌ Error writing updated note file: %v", err)
+			}
+
+			if _, err := os.Stat(config.Trash.TrashDir); os.IsNotExist(err) {
+				err := os.MkdirAll(config.Trash.TrashDir, 0755)
+				if err != nil {
+					return fmt.Errorf("❌ Failed to create trash directory: %v", err)
+				}
+			}
+
+			err = os.Rename(originalPath, deletedPath)
+			if err != nil {
+				return fmt.Errorf("❌ Error moving note to trash: %v", err)
+			}
+
+			notes[i].Deleted = true
+
+			err = store.SaveUpdatedJson(notes, notesJsonPath)
+			if err != nil {
+				return fmt.Errorf("❌ Error updating JSON file: %v", err)
+
+			}
+
+			log.Printf("✅ Note %s moved to trash: %s", notes[i].ID, deletedPath)
+			break
+		}
+	}
+	if !found {
+		log.Printf("❌ Note with ID %s not found", noteID)
+	}
+	return nil
+}
+
+func DeleteTaskPermanently(taskID string, config model.Config) error {
+	// `tasks.json` をロード
+	tasks, _, err := store.LoadTasks(config)
+	if err != nil {
+		return fmt.Errorf("❌ Error loading config: %v", err)
+	}
+
+	var noteID string
+	found := false
+
+	for _, task := range tasks {
+		if task.ID == taskID {
+			noteID = task.NoteID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		log.Printf("❌ Task with ID %s not found", taskID)
+	}
+
+	notes, notesJsonPath, err := store.LoadNotes(config)
+	if err != nil {
+		return fmt.Errorf("❌ Error loading notes from JSON: %v", err)
+	}
+
+	updatedNotes := []model.Note{}
+	for i := range notes {
+		if noteID != notes[i].SeqID {
+			updatedNotes = append(updatedNotes, notes[i])
+		} else {
+			originalPath := filepath.Join(config.ZettelDir, notes[i].ID+".md")
+			err := os.Remove(originalPath)
+			if err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("❌ Failed to delete note file: %w", err)
+			}
+		}
+	}
+
+	err = store.SaveUpdatedJson(updatedNotes, notesJsonPath)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to update notes.json: %w", err)
+	}
+
+	noteTags, noteTagsJsonPath, err := store.LoadNoteTags(config)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load note_tags.json: %w", err)
+	}
+
+	updatedNoteTags := []model.NoteTag{}
+	for _, noteTag := range noteTags {
+		if noteTag.NoteID != noteID {
+			updatedNoteTags = append(updatedNoteTags, noteTag)
+		}
+	}
+	err = store.SaveUpdatedJson(updatedNoteTags, noteTagsJsonPath)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to update note_tags.json: %w", err)
+	}
+
+	fmt.Printf("✅ Note %s permanently deleted\n", noteID)
+	return nil
 }
 
 // taskCmd represents the task command
@@ -713,94 +865,16 @@ var deleteTaskCmd = &cobra.Command{
 		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
 		// }
 
-		// `tasks.json` をロード
-		tasks, _, err := store.LoadTasks(*config)
+		if taskForceDelete {
+			err = DeleteTaskPermanently(taskID, *config)
+		} else {
+			err = MoveTaskToTrash(taskID, *config)
+		}
+
 		if err != nil {
-			log.Printf("❌ Error loading config: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("❌ %v", err)
 		}
 
-		var noteID string
-		found := false
-
-		for _, task := range tasks {
-			if task.ID == taskID {
-				noteID = task.NoteID
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			log.Printf("❌ Task with ID %s not found", taskID)
-		}
-
-		notes, notesJsonPath, err := store.LoadNotes(*config)
-		if err != nil {
-			log.Printf("❌ Error loading notes from JSON: %v", err)
-			os.Exit(1)
-		}
-
-		found = false
-		for i := range notes {
-			if noteID == notes[i].SeqID {
-				found = true
-
-				originalPath := filepath.Join(config.ZettelDir, notes[i].ID+".md")
-				deletedPath := filepath.Join(config.Trash.TrashDir, notes[i].ID+".md")
-
-				note, err := os.ReadFile(originalPath)
-				if err != nil {
-					log.Printf("❌ Error reading note file: %v", err)
-					return
-				}
-
-				// Parse front matter
-				frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(note))
-				if err != nil {
-					log.Printf("❌ Error parsing front matter: %v", err)
-					return
-				}
-
-				// Update `deleted:` field
-				updatedFrontMatter := store.UpdateDeletedToFrontMatter(&frontMatter)
-				updatedContent := store.UpdateFrontMatter(updatedFrontMatter, body)
-
-				// Write back to file
-				err = os.WriteFile(originalPath, []byte(updatedContent), 0644)
-				if err != nil {
-					log.Printf("❌ Error writing updated note file: %v", err)
-					return
-				}
-
-				if _, err := os.Stat(config.Trash.TrashDir); os.IsNotExist(err) {
-					err := os.MkdirAll(config.Trash.TrashDir, 0755)
-					if err != nil {
-						log.Printf("❌ Failed to create trash directory: %v", err)
-						return
-					}
-				}
-
-				err = os.Rename(originalPath, deletedPath)
-				if err != nil {
-					log.Printf("❌ Error moving note to trash: %v", err)
-				}
-
-				notes[i].Deleted = true
-
-				err = store.SaveUpdatedJson(notes, notesJsonPath)
-				if err != nil {
-					log.Printf("❌ Error updating JSON file: %v", err)
-					return
-				}
-
-				log.Printf("✅ Note %s moved to trash: %s", notes[i].ID, deletedPath)
-				break
-			}
-		}
-		if !found {
-			log.Printf("❌ Note with ID %s not found", noteID)
-		}
 	},
 }
 
@@ -935,4 +1009,5 @@ func init() {
 	listTaskCmd.Flags().BoolVar(&taskTrash, "trash", false, "Show deleted notes")
 	listTaskCmd.Flags().BoolVar(&taskArchive, "archive", false, "Show archived notes")
 	showTaskCmd.Flags().BoolVar(&taskMeta, "meta", false, "Show only metadata without note content")
+	deleteTaskCmd.Flags().BoolVarP(&taskForceDelete, "force", "f", false, "Permanently delete the note")
 }
