@@ -35,6 +35,8 @@ var taskTrash bool
 var taskArchive bool
 var taskMeta bool
 var taskForceDelete bool
+var taskRestoreTrash bool
+var taskRestoreArchive bool
 
 func createNewTask(taskTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -151,7 +153,8 @@ func MoveTaskToTrash(taskID string, config model.Config) error {
 			}
 
 			// Update `deleted:` field
-			updatedFrontMatter := store.UpdateDeletedToFrontMatter(&frontMatter)
+			deleted := true
+			updatedFrontMatter := store.UpdateDeletedToFrontMatter(&frontMatter, deleted)
 			updatedContent := store.UpdateFrontMatter(updatedFrontMatter, body)
 
 			// Write back to file
@@ -990,6 +993,36 @@ var archiveTaskCmd = &cobra.Command{
 	},
 }
 
+var restoreTaskCmd = &cobra.Command{
+	Use:     "restore [noteID]",
+	Short:   "Restore a task",
+	Args:    cobra.MaximumNArgs(1),
+	Aliases: []string{"rs"},
+	Run: func(cmd *cobra.Command, args []string) {
+		taskID := args[0]
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v", err)
+			os.Exit(1)
+		}
+
+		if taskRestoreTrash && taskRestoreArchive {
+			log.Fatalf("❌ You cannot specify both --deleted and --archived")
+		}
+
+		// デフォルトは `--deleted`
+		if !taskRestoreTrash && !taskRestoreArchive {
+			taskRestoreTrash = true
+		}
+
+		err = store.RestoreNote(taskID, *config, taskRestoreTrash, taskRestoreArchive)
+		if err != nil {
+			log.Fatalf("❌ %v", err)
+		}
+
+	},
+}
+
 func init() {
 	taskCmd.AddCommand(newTaskCmd)
 	taskCmd.AddCommand(listTaskCmd)
@@ -998,6 +1031,7 @@ func init() {
 	taskCmd.AddCommand(editTaskCmd)
 	taskCmd.AddCommand(deleteTaskCmd)
 	taskCmd.AddCommand(archiveTaskCmd)
+	taskCmd.AddCommand(restoreTaskCmd)
 	rootCmd.AddCommand(taskCmd)
 	newTaskCmd.Flags().StringSliceVarP(&taskTags, "tag", "t", []string{}, "Specify tags")
 	listTaskCmd.Flags().StringVar(&status, "status", "", "Filter by status")
@@ -1010,4 +1044,6 @@ func init() {
 	listTaskCmd.Flags().BoolVar(&taskArchive, "archive", false, "Show archived notes")
 	showTaskCmd.Flags().BoolVar(&taskMeta, "meta", false, "Show only metadata without note content")
 	deleteTaskCmd.Flags().BoolVarP(&taskForceDelete, "force", "f", false, "Permanently delete the note")
+	restoreTaskCmd.Flags().BoolVar(&taskRestoreTrash, "trash", false, "Restore from trash")
+	restoreTaskCmd.Flags().BoolVar(&taskRestoreArchive, "archive", false, "Restore from archive")
 }

@@ -30,6 +30,14 @@ func (n *NoteFrontMatter) SetDeleted() {
 	n.Deleted = true
 }
 
+func (n *NoteFrontMatter) ResetDeleted() {
+	n.Deleted = false
+}
+
 func (n *NoteFrontMatter) SetArchived() {
 	n.Archived = true
+}
+
+func (n *NoteFrontMatter) ResetArchived() {
+	n.Archived = false
 }

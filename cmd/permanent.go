@@ -33,6 +33,8 @@ var permanentPageSize int
 var permanentTrash bool
 var permanentArchive bool
 var permanentForceDelete bool
+var permanentRestoreTrash bool
+var permanentRestoreArchive bool
 
 func createNewPermanentNote(permanentTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -716,6 +718,36 @@ var archivePermanentCmd = &cobra.Command{
 	},
 }
 
+var restorePermanentCmd = &cobra.Command{
+	Use:     "restore [noteID]",
+	Short:   "Restore a permanent note",
+	Args:    cobra.MaximumNArgs(1),
+	Aliases: []string{"rs"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v", err)
+			os.Exit(1)
+		}
+
+		if permanentRestoreTrash && permanentRestoreArchive {
+			log.Fatalf("❌ You cannot specify both --deleted and --archived")
+		}
+
+		// デフォルトは `--deleted`
+		if !permanentRestoreTrash && !permanentRestoreArchive {
+			permanentRestoreTrash = true
+		}
+
+		err = store.RestoreNote(noteID, *config, permanentRestoreTrash, permanentRestoreArchive)
+		if err != nil {
+			log.Fatalf("❌ %v", err)
+		}
+
+	},
+}
+
 func init() {
 	permanentCmd.AddCommand(newPermanentCmd)
 	permanentCmd.AddCommand(permanentListCmd)
@@ -723,6 +755,7 @@ func init() {
 	permanentCmd.AddCommand(editPermanentCmd)
 	permanentCmd.AddCommand(deletePermanentCmd)
 	permanentCmd.AddCommand(archivePermanentCmd)
+	permanentCmd.AddCommand(restorePermanentCmd)
 	rootCmd.AddCommand(permanentCmd)
 	newPermanentCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Specify tags")
 	permanentListCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Filter by tags")
@@ -733,4 +766,6 @@ func init() {
 	permanentListCmd.Flags().BoolVar(&permanentTrash, "trash", false, "Show deleted notes")
 	permanentListCmd.Flags().BoolVar(&permanentArchive, "archive", false, "Show archived notes")
 	deletePermanentCmd.Flags().BoolVarP(&permanentForceDelete, "force", "f", false, "Permanently delete the note")
+	permanentListCmd.Flags().BoolVar(&permanentRestoreTrash, "trash", false, "Restore from trash")
+	permanentListCmd.Flags().BoolVar(&permanentRestoreArchive, "archive", false, "Restore from archive")
 }

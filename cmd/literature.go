@@ -33,6 +33,8 @@ var literaturePageSize int
 var literatureTrash bool
 var literatureArchive bool
 var literatureForceDelete bool
+var literatureRestoreTrash bool
+var literatureRestoreArchive bool
 
 func createNewLiteratureNote(literatureTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -716,6 +718,36 @@ var archiveLiteratureCmd = &cobra.Command{
 	},
 }
 
+var restoreLiteratureCmd = &cobra.Command{
+	Use:     "restore [noteID]",
+	Short:   "Restore a fleeting note",
+	Args:    cobra.MaximumNArgs(1),
+	Aliases: []string{"rs"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v", err)
+			os.Exit(1)
+		}
+
+		if literatureRestoreTrash && literatureRestoreArchive {
+			log.Fatalf("❌ You cannot specify both --deleted and --archived")
+		}
+
+		// デフォルトは `--deleted`
+		if !literatureRestoreTrash && !literatureRestoreArchive {
+			literatureRestoreTrash = true
+		}
+
+		err = store.RestoreNote(noteID, *config, literatureRestoreTrash, literatureRestoreArchive)
+		if err != nil {
+			log.Fatalf("❌ %v", err)
+		}
+
+	},
+}
+
 func init() {
 	literatureCmd.AddCommand(newLiteratureCmd)
 	literatureCmd.AddCommand(literatureListCmd)
@@ -723,6 +755,7 @@ func init() {
 	literatureCmd.AddCommand(editLiteratureCmd)
 	literatureCmd.AddCommand(deleteLiteratureCmd)
 	literatureCmd.AddCommand(archiveLiteratureCmd)
+	literatureCmd.AddCommand(restoreLiteratureCmd)
 	rootCmd.AddCommand(literatureCmd)
 	newLiteratureCmd.Flags().StringSliceVarP(&literatureTags, "tag", "t", []string{}, "Specify tags")
 	literatureListCmd.Flags().StringSliceVarP(&literatureTags, "tag", "t", []string{}, "Filter by tags")
@@ -733,4 +766,6 @@ func init() {
 	literatureListCmd.Flags().BoolVar(&literatureTrash, "trash", false, "Show deleted notes")
 	literatureListCmd.Flags().BoolVar(&literatureArchive, "archive", false, "Show archived notes")
 	deleteLiteratureCmd.Flags().BoolVarP(&literatureForceDelete, "force", "f", false, "Permanently delete the note")
+	literatureListCmd.Flags().BoolVar(&literatureRestoreTrash, "trash", false, "Restore from trash")
+	literatureListCmd.Flags().BoolVar(&literatureRestoreArchive, "archive", false, "Restore from archive")
 }

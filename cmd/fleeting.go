@@ -33,6 +33,8 @@ var fleetingPageSize int
 var fleetingTrash bool
 var fleetingArchive bool
 var fleetingForceDelete bool
+var fleetingRestoreTrash bool
+var fleetingRestoreArchive bool
 
 func createNewFleetingNote(fleetingTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -703,6 +705,36 @@ var archiveFleetingCmd = &cobra.Command{
 	},
 }
 
+var restoreFleetingCmd = &cobra.Command{
+	Use:     "restore [noteID]",
+	Short:   "Restore a fleeting note",
+	Args:    cobra.MaximumNArgs(1),
+	Aliases: []string{"rs"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v", err)
+			os.Exit(1)
+		}
+
+		if fleetingRestoreTrash && fleetingRestoreArchive {
+			log.Fatalf("❌ You cannot specify both --deleted and --archived")
+		}
+
+		// デフォルトは `--deleted`
+		if !fleetingRestoreTrash && !fleetingRestoreArchive {
+			fleetingRestoreTrash = true
+		}
+
+		err = store.RestoreNote(noteID, *config, fleetingRestoreTrash, fleetingRestoreArchive)
+		if err != nil {
+			log.Fatalf("❌ %v", err)
+		}
+
+	},
+}
+
 func init() {
 	fleetingCmd.AddCommand(newFleetingCmd)
 	fleetingCmd.AddCommand(fleetingListCmd)
@@ -710,6 +742,7 @@ func init() {
 	fleetingCmd.AddCommand(editFleetingCmd)
 	fleetingCmd.AddCommand(deleteFleetingCmd)
 	fleetingCmd.AddCommand(archiveFleetingCmd)
+	fleetingCmd.AddCommand(restoreFleetingCmd)
 	rootCmd.AddCommand(fleetingCmd)
 	fleetingListCmd.Flags().StringSliceVarP(&fleetingTags, "tag", "t", []string{}, "Filter by tags")
 	fleetingListCmd.Flags().StringVar(&fleetingFrom, "from", "", "Filter by start date (YYYY-MM-DD)")
@@ -719,5 +752,6 @@ func init() {
 	fleetingListCmd.Flags().BoolVar(&fleetingTrash, "trash", false, "Show deleted notes")
 	fleetingListCmd.Flags().BoolVar(&fleetingArchive, "archive", false, "Show archived notes")
 	deleteFleetingCmd.Flags().BoolVarP(&fleetingForceDelete, "force", "f", false, "Permanently delete the note")
-
+	fleetingListCmd.Flags().BoolVar(&fleetingRestoreTrash, "trash", false, "Restore from trash")
+	fleetingListCmd.Flags().BoolVar(&fleetingRestoreArchive, "archive", false, "Restore from archive")
 }

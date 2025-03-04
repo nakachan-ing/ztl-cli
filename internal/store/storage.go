@@ -144,8 +144,12 @@ func SaveUpdatedJson[T any](v []T, jsonPath string) error {
 	return nil
 }
 
-func UpdateDeletedToFrontMatter[T model.Deletable](frontMatter T) T {
-	frontMatter.SetDeleted()
+func UpdateDeletedToFrontMatter[T model.Deletable](frontMatter T, deleted bool) T {
+	if deleted {
+		frontMatter.SetDeleted()
+	} else {
+		frontMatter.ResetDeleted()
+	}
 	return frontMatter
 }
 
@@ -181,8 +185,9 @@ func MoveNoteToTrash(noteID string, config model.Config) error {
 				return fmt.Errorf("❌ Error parsing front matter: %v", err)
 			}
 
+			deleted := true
 			// Update `deleted:` field
-			updatedFrontMatter := UpdateDeletedToFrontMatter(&frontMatter)
+			updatedFrontMatter := UpdateDeletedToFrontMatter(&frontMatter, deleted)
 			updatedContent := UpdateFrontMatter(updatedFrontMatter, body)
 
 			// Write back to file
@@ -400,4 +405,86 @@ func CleanupBackups(backupDir string, retentionPeriod time.Duration) error {
 		}
 	}
 	return nil
+}
+
+func RestoreNote(noteID string, config model.Config, restoreDeleted bool, restoreArchived bool) error {
+	// Load notes from JSON
+	notes, notesJsonPath, err := LoadNotes(config)
+	if err != nil {
+		log.Printf("❌ Error loading notes from JSON: %v", err)
+		os.Exit(1)
+	}
+
+	found := false
+	for i := range notes {
+		if noteID == notes[i].SeqID {
+			found = true
+
+			var sourceDir, action string
+
+			if restoreDeleted {
+				sourceDir = config.Trash.TrashDir
+				notes[i].Deleted = false
+				action = "trash"
+			} else if restoreArchived {
+				sourceDir = config.ArchiveDir
+				notes[i].Archived = false
+				action = "archive"
+			} else {
+				return fmt.Errorf("❌ No valid restore option specified")
+			}
+
+			deletedPath := filepath.Join(sourceDir, notes[i].ID+".md")
+			restoredPath := filepath.Join(config.ZettelDir, notes[i].ID+".md")
+
+			note, err := os.ReadFile(deletedPath)
+			if err != nil {
+				return fmt.Errorf("❌ Error reading note file: %v", err)
+			}
+
+			// Parse front matter
+			frontMatter, body, err := ParseFrontMatter[model.NoteFrontMatter](string(note))
+			if err != nil {
+				return fmt.Errorf("❌ Error parsing front matter: %v", err)
+			}
+
+			// Update `deleted:` or `archived:` field
+			updatedFrontMatter := UpdateNoteStatusInFrontMatter(&frontMatter, restoreDeleted, restoreArchived)
+			updatedContent := UpdateFrontMatter(updatedFrontMatter, body)
+
+			// Write back to file
+			err = os.WriteFile(deletedPath, []byte(updatedContent), 0644)
+			if err != nil {
+				return fmt.Errorf("❌ Error writing updated note file: %v", err)
+			}
+
+			err = os.Rename(deletedPath, restoredPath)
+			if err != nil {
+				return fmt.Errorf("❌ Error moving note to %s: %v", action, err)
+			}
+
+			err = SaveUpdatedJson(notes, notesJsonPath)
+			if err != nil {
+				return fmt.Errorf("❌ Error updating JSON file: %v", err)
+			}
+
+			log.Printf("✅ Note %s restored from %s to Zettelkasten: %s", notes[i].ID, action, restoredPath)
+			break
+		}
+	}
+
+	if !found {
+		log.Printf("❌ Note with ID %s not found", noteID)
+	}
+	return nil
+}
+
+func UpdateNoteStatusInFrontMatter(frontMatter *model.NoteFrontMatter, restoreDeleted bool, restoreArchived bool) *model.NoteFrontMatter {
+	if restoreDeleted {
+		frontMatter.Deleted = false
+	}
+	if restoreArchived {
+		frontMatter.Archived = false
+	}
+	return frontMatter
 }

@@ -24,6 +24,14 @@ func (t *TaskFrontMatter) SetDeleted() {
 	t.Deleted = true
 }
 
+func (t *TaskFrontMatter) ResetDeleted() {
+	t.Deleted = false
+}
+
 func (n *TaskFrontMatter) SetArchived() {
 	n.Archived = true
+}
+
+func (n *TaskFrontMatter) ResetArchived() {
+	n.Archived = false
 }
