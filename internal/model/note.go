@@ -2,7 +2,7 @@ package model
 
 type Note struct {
 	ID          string `json:"id"`     // yyyymmddhhmmss
-	SeqID       string `json:"seq_id"` // 1...
+	SeqID       string `json:"seq_id"` // n001...
 	Title       string `json:"title"`
 	NoteType    string `json:"note_type"` // fleeting, permanent, literature
 	ProjectName string `json:"project_name"`

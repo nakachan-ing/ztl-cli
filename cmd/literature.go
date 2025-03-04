@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -145,6 +146,46 @@ var newLiteratureCmd = &cobra.Command{
 		err = util.OpenEditor(newLiteratureStr, *config)
 		if err != nil {
 			log.Printf("❌ Failed to open editor: %v\n", err)
+		}
+
+		noteID := strings.TrimSuffix(filepath.Base(newLiteratureStr), ".md")
+
+		mdContent, err := os.ReadFile(newLiteratureStr)
+		if err != nil {
+			log.Printf("❌ Failed to read Markdown file: %v", err)
+		}
+
+		frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(mdContent))
+		if err != nil {
+			log.Printf("⚠️ Failed to parse front matter for %s: %v", newLiteratureStr, err)
+			body = string(mdContent) // フロントマターの解析に失敗した場合、全文をセット
+		}
+
+		notes, noteJsonPath, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Error loading notes from JSON: %v", err)
+			os.Exit(1)
+		}
+
+		found := false
+		for i, note := range notes {
+			if note.ID == noteID {
+				notes[i].Title = frontMatter.Title
+				notes[i].NoteType = frontMatter.NoteType
+				notes[i].Content = body
+				notes[i].UpdatedAt = time.Now().Format("2006-01-02 15:04:05") // 更新日時も更新
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			log.Printf("❌ Note with ID %s not found", noteID)
+		}
+
+		err = store.SaveUpdatedJson(notes, noteJsonPath)
+		if err != nil {
+			log.Printf("❌ Failed to update notes.json: %v\n", err)
 		}
 	},
 }

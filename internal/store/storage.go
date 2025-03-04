@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -43,12 +44,10 @@ func InsertNoteToJson(note model.Note, config model.Config) error {
 	if err != nil {
 		return fmt.Errorf("❌ Failed to load to JSON: %w", err)
 	}
-	// Assign a new ID (incremental)
-	newID := 1
-	if len(notes) > 0 {
-		newID = len(notes) + 1
-	}
-	note.SeqID = strconv.Itoa(newID)
+
+	newID := GetNextNoteID(notes)
+
+	note.SeqID = newID
 
 	notes = append(notes, note)
 
@@ -67,38 +66,30 @@ func InsertNoteToJson(note model.Note, config model.Config) error {
 	return nil
 }
 
-// func UpdateNoteToJson(noteID string, config model.Config) error {
-// 	notes, _, err := LoadNotes(config)
-// 	if err != nil {
-// 		return fmt.Errorf("❌ Failed to load to JSON: %w", err)
-// 	}
+func GetNextNoteID(notes []model.Note) string {
+	maxSeqID := 0
+	re := regexp.MustCompile(`p(\d+)`) // "pXXX" の数字部分を抽出する正規表現
 
-// 	for i := range notes {
-// 		if noteID == notes[i].SeqID {
-// 			updatedContent, err := os.ReadFile(filepath.Join(config.ZettelDir, notes[i].ID+".md"))
-// 			if err != nil {
-// 				log.Printf("❌ Failed to read updated note file: %v", err)
-// 				os.Exit(1)
-// 			}
+	// 最大IDを取得
+	for _, note := range notes {
+		match := re.FindStringSubmatch(note.SeqID)
+		if match != nil {
+			seq, err := strconv.Atoi(match[1]) // "XXX" 部分を整数に変換
+			if err == nil && seq > maxSeqID {
+				maxSeqID = seq
+			}
+		}
+	}
 
-// 			// Parse front matter
-// 			frontMatter, _, err := ParseFrontMatter(string(updatedContent))
-// 			if err != nil {
-// 				log.Printf("❌ Error parsing front matter: %v", err)
-// 				os.Exit(1)
-// 			}
+	// 新しいIDを生成
+	newSeqID := maxSeqID + 1
 
-// 			// Update note metadata
-// 			notes[i].Title = frontMatter.Title
-// 			notes[i].NoteType = frontMatter.NoteType
-// 			// notes[i].Tags = frontMatter.Tags
-// 			// notes[i].Links = frontMatter.Links
-// 			// notes[i].TaskStatus = frontMatter.TaskStatus
-// 			notes[i].UpdatedAt = frontMatter.UpdatedAt
-// 		}
-// 	}
-// 	return nil
-// }
+	// 999 までは3桁ゼロ埋め、それ以上はそのまま
+	if newSeqID < 1000 {
+		return fmt.Sprintf("n%03d", newSeqID) // 3桁ゼロ埋め
+	}
+	return fmt.Sprintf("n%d", newSeqID) // 1000以上はゼロ埋めなし
+}
 
 func ParseFrontMatter[T any](content string) (T, string, error) {
 	var frontMatter T

@@ -447,30 +447,27 @@ var updateTaskCmd = &cobra.Command{
 							log.Printf("❌ Error writing updated note file: %v", err)
 							return
 						}
-
-						// `tasks.json` を更新
-						err = store.SaveUpdatedJson(tasks, taskJsonPath)
-						if err != nil {
-							log.Printf("❌ Error updating JSON file: %v", err)
-							return
-						}
-
-						err = store.SaveUpdatedJson(notes, noteJsonPath)
-						if err != nil {
-							log.Printf("❌ Error updating JSON file: %v", err)
-							return
-						}
-
-						break
 					}
 				}
-
-				break
 			}
+
 		}
 
 		if !found {
 			log.Printf("❌ Task with ID %s not found", taskID)
+		}
+
+		// `tasks.json` を更新
+		err = store.SaveUpdatedJson(tasks, taskJsonPath)
+		if err != nil {
+			log.Printf("❌ Error updating JSON file: %v", err)
+			return
+		}
+
+		err = store.SaveUpdatedJson(notes, noteJsonPath)
+		if err != nil {
+			log.Printf("❌ Error updating JSON file: %v", err)
+			return
 		}
 
 		fmt.Printf("✅ Task %s status updated to %s\n", taskID, updatedStatus)
@@ -581,13 +578,4 @@ func init() {
 	listTaskCmd.Flags().BoolVar(&taskTrash, "trash", false, "Show deleted notes")
 	listTaskCmd.Flags().BoolVar(&taskArchive, "archive", false, "Show archived notes")
 	showTaskCmd.Flags().BoolVar(&taskMeta, "meta", false, "Show only metadata without note content")
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// taskCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// taskCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
