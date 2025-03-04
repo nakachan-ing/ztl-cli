@@ -766,6 +766,6 @@ func init() {
 	permanentListCmd.Flags().BoolVar(&permanentTrash, "trash", false, "Show deleted notes")
 	permanentListCmd.Flags().BoolVar(&permanentArchive, "archive", false, "Show archived notes")
 	deletePermanentCmd.Flags().BoolVarP(&permanentForceDelete, "force", "f", false, "Permanently delete the note")
-	permanentListCmd.Flags().BoolVar(&permanentRestoreTrash, "trash", false, "Restore from trash")
-	permanentListCmd.Flags().BoolVar(&permanentRestoreArchive, "archive", false, "Restore from archive")
+	restorePermanentCmd.Flags().BoolVar(&permanentRestoreTrash, "trash", false, "Restore from trash")
+	restorePermanentCmd.Flags().BoolVar(&permanentRestoreArchive, "archive", false, "Restore from archive")
 }

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jedib0t/go-pretty/text"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -39,12 +40,12 @@ var listCmd = &cobra.Command{
 		}
 
 		// Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		// Load notes from JSON
 		notes, _, err := store.LoadNotes(*config)

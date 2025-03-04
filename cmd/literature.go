@@ -766,6 +766,6 @@ func init() {
 	literatureListCmd.Flags().BoolVar(&literatureTrash, "trash", false, "Show deleted notes")
 	literatureListCmd.Flags().BoolVar(&literatureArchive, "archive", false, "Show archived notes")
 	deleteLiteratureCmd.Flags().BoolVarP(&literatureForceDelete, "force", "f", false, "Permanently delete the note")
-	literatureListCmd.Flags().BoolVar(&literatureRestoreTrash, "trash", false, "Restore from trash")
-	literatureListCmd.Flags().BoolVar(&literatureRestoreArchive, "archive", false, "Restore from archive")
+	restoreLiteratureCmd.Flags().BoolVar(&literatureRestoreTrash, "trash", false, "Restore from trash")
+	restoreLiteratureCmd.Flags().BoolVar(&literatureRestoreArchive, "archive", false, "Restore from archive")
 }

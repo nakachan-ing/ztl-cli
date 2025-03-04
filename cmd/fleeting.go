@@ -752,6 +752,6 @@ func init() {
 	fleetingListCmd.Flags().BoolVar(&fleetingTrash, "trash", false, "Show deleted notes")
 	fleetingListCmd.Flags().BoolVar(&fleetingArchive, "archive", false, "Show archived notes")
 	deleteFleetingCmd.Flags().BoolVarP(&fleetingForceDelete, "force", "f", false, "Permanently delete the note")
-	fleetingListCmd.Flags().BoolVar(&fleetingRestoreTrash, "trash", false, "Restore from trash")
-	fleetingListCmd.Flags().BoolVar(&fleetingRestoreArchive, "archive", false, "Restore from archive")
+	restoreFleetingCmd.Flags().BoolVar(&fleetingRestoreTrash, "trash", false, "Restore from trash")
+	restoreFleetingCmd.Flags().BoolVar(&fleetingRestoreArchive, "archive", false, "Restore from archive")
 }
