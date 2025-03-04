@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/glamour"
+	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/text"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nakachan-ing/ztl-cli/internal/model"
@@ -401,6 +403,93 @@ var permanentListCmd = &cobra.Command{
 	},
 }
 
+var showPermanentCmd = &cobra.Command{
+	Use:     "show [Note ID]",
+	Short:   "Show note detail",
+	Args:    cobra.ExactArgs(1),
+	Aliases: []string{"s"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		// // Perform cleanup tasks
+		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
+		// }
+		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
+		// }
+
+		// Load notes from JSON
+		notes, _, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Error loading notes from JSON: %v", err)
+			os.Exit(1)
+		}
+
+		var ID string
+		found := false
+
+		for _, note := range notes {
+			if note.SeqID == noteID {
+				ID = note.ID
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			log.Printf("❌ Task with ID %s not found", noteID)
+		}
+
+		mdFilePath := filepath.Join(config.ZettelDir, ID+".md")
+
+		if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
+			log.Printf("❌ Markdown file not found: %s", mdFilePath)
+		}
+
+		// Markdown ファイルを読み込んで表示
+		mdContent, err := os.ReadFile(mdFilePath)
+		if err != nil {
+			log.Printf("❌ Failed to read updated note file: %v", err)
+		}
+
+		titleStyle := color.New(color.FgCyan, color.Bold).SprintFunc()
+		frontMatterStyle := color.New(color.FgHiGreen).SprintFunc()
+
+		frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(mdContent))
+		if err != nil {
+			log.Printf("❌ Error parsing front matter: %v", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("[%v] %v\n", titleStyle(frontMatter.ID), titleStyle(frontMatter.Title))
+		fmt.Println(strings.Repeat("-", 50))
+		fmt.Printf("Type: %v\n", frontMatterStyle(frontMatter.NoteType))
+		fmt.Printf("Tags: %v\n", frontMatterStyle(frontMatter.Tags))
+		fmt.Printf("Links: %v\n", frontMatterStyle(frontMatter.Links))
+		fmt.Printf("Task status: %v\n", frontMatterStyle(frontMatter.Status))
+		fmt.Printf("Created at: %v\n", frontMatterStyle(frontMatter.CreatedAt))
+		fmt.Printf("Updated at: %v\n", frontMatterStyle(frontMatter.UpdatedAt))
+
+		// Render Markdown content unless --meta flag is used
+		if !taskMeta {
+			renderedContent, err := glamour.Render(body, "dark")
+			if err != nil {
+				log.Printf("⚠️ Failed to render markdown content: %v", err)
+			} else {
+				fmt.Println(renderedContent)
+			}
+		}
+
+	},
+}
+
 var editPermanentCmd = &cobra.Command{
 	Use:     "edit [noteID]",
 	Short:   "Edit a permanent note",
@@ -602,6 +691,7 @@ var deletePermanentCmd = &cobra.Command{
 func init() {
 	permanentCmd.AddCommand(newPermanentCmd)
 	permanentCmd.AddCommand(permanentListCmd)
+	permanentCmd.AddCommand(showPermanentCmd)
 	permanentCmd.AddCommand(editPermanentCmd)
 	permanentCmd.AddCommand(deletePermanentCmd)
 	rootCmd.AddCommand(permanentCmd)
