@@ -86,7 +86,7 @@ func addNoteToProject(noteID, projectID string, config model.Config) (model.Note
 // projectCmd represents the project command
 var projectCmd = &cobra.Command{
 	Use:     "project",
-	Short:   "A brief description of your command",
+	Short:   "Manage projects",
 	Aliases: []string{"pj"},
 }
 

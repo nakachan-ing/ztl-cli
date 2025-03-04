@@ -258,7 +258,7 @@ func DeleteTaskPermanently(taskID string, config model.Config) error {
 // taskCmd represents the task command
 var taskCmd = &cobra.Command{
 	Use:     "task",
-	Short:   "A brief description of your command",
+	Short:   "Manage tasks",
 	Args:    cobra.MaximumNArgs(1),
 	Aliases: []string{"t"},
 }
