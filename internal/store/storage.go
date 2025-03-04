@@ -293,3 +293,111 @@ func BackupNote(notePath string, backupDir string) error {
 	}
 	return nil
 }
+
+func CleanupTrash(config model.Config, retentionPeriod time.Duration) error {
+	trashDir := config.Trash.TrashDir
+	files, err := os.ReadDir(trashDir)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to read trash directory: %w", err)
+	}
+	now := time.Now()
+
+	// `notes.json` と `note_tags.json` を読み込む
+	notes, notesJsonPath, err := LoadNotes(config)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load notes.json: %w", err)
+	}
+
+	noteTags, noteTagsJsonPath, err := LoadNoteTags(config)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load note_tags.json: %w", err)
+	}
+
+	// 削除対象のノートIDを記録
+	notesToDelete := make(map[string]bool)
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		filePath := filepath.Join(trashDir, file.Name())
+		fileInfo, err := file.Info()
+		if err != nil {
+			log.Printf("⚠️ Failed to get file info: %s (%v)", filePath, err)
+			continue
+		}
+		modTime := fileInfo.ModTime()
+
+		// 指定された保持期間を過ぎたファイルを削除
+		if now.Sub(modTime) > retentionPeriod {
+			noteID := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name())) // .md を除いたファイル名
+
+			// ファイルを削除
+			if err := os.Remove(filePath); err != nil {
+				log.Printf("❌ Failed to remove trash file: %s (%v)", filePath, err)
+			} else {
+				log.Printf("✅ Removed trash file: %s", filePath)
+				notesToDelete[noteID] = true
+			}
+		}
+	}
+
+	// `notes.json` から削除対象のノートを削除
+	updatedNotes := []model.Note{}
+	for _, note := range notes {
+		if !notesToDelete[note.ID] {
+			updatedNotes = append(updatedNotes, note)
+		}
+	}
+
+	err = SaveUpdatedJson(updatedNotes, notesJsonPath)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to update notes.json: %w", err)
+	}
+
+	// `note_tags.json` から削除対象のノートのタグ情報を削除
+	updatedNoteTags := []model.NoteTag{}
+	for _, noteTag := range noteTags {
+		if !notesToDelete[noteTag.NoteID] {
+			updatedNoteTags = append(updatedNoteTags, noteTag)
+		}
+	}
+
+	err = SaveUpdatedJson(updatedNoteTags, noteTagsJsonPath)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to update note_tags.json: %w", err)
+	}
+
+	return nil
+}
+
+// Cleanup old backups
+func CleanupBackups(backupDir string, retentionPeriod time.Duration) error {
+	files, err := os.ReadDir(backupDir)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to read backup directory: %w", err)
+	}
+	now := time.Now()
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		filePath := filepath.Join(backupDir, file.Name())
+		fileInfo, err := file.Info()
+		if err != nil {
+			log.Printf("⚠️ Failed to get file info: %s (%v)", filePath, err)
+			continue
+		}
+		modTime := fileInfo.ModTime()
+
+		if now.Sub(modTime) > retentionPeriod {
+			if err := os.Remove(filePath); err != nil {
+				log.Printf("❌ Failed to remove backup file: %s (%v)", filePath, err)
+			} else {
+				log.Printf("✅ Removed backup file: %s", filePath)
+			}
+		}
+	}
+	return nil
+}

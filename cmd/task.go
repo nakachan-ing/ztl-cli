@@ -277,13 +277,13 @@ var newTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		// Perform cleanup tasks
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		if len(taskTags) > 0 {
 			if err := store.CreateNewTag(taskTags, *config); err != nil {
@@ -327,13 +327,13 @@ var listTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		// Perform cleanup tasks
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		// `tasks.json` をロード
 		tasks, _, err := store.LoadTasks(*config)
@@ -550,13 +550,13 @@ var updateTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		// Perform cleanup tasks
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		// `tasks.json` をロード
 		tasks, taskJsonPath, err := store.LoadTasks(*config)
@@ -643,13 +643,13 @@ var showTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		// Perform cleanup tasks
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		// `tasks.json` をロード
 		tasks, _, err := store.LoadTasks(*config)
@@ -730,12 +730,12 @@ var editTaskCmd = &cobra.Command{
 		}
 
 		// Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		// `tasks.json` をロード
 		tasks, _, err := store.LoadTasks(*config)
@@ -858,12 +858,12 @@ var deleteTaskCmd = &cobra.Command{
 		}
 
 		// Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		if taskForceDelete {
 			err = DeleteTaskPermanently(taskID, *config)
@@ -892,12 +892,12 @@ var archiveTaskCmd = &cobra.Command{
 		}
 
 		// Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
+		if err := store.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Backup cleanup failed: %v", err)
+		}
+		if err := store.CleanupTrash(*config, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+			log.Printf("⚠️ Trash cleanup failed: %v", err)
+		}
 
 		// `tasks.json` をロード
 		tasks, _, err := store.LoadTasks(*config)

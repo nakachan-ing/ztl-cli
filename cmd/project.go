@@ -104,14 +104,6 @@ var newProjectCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
-
 		if err = createNewProject(projectName, *config); err != nil {
 			log.Printf("❌ Failed to create note: %v\n", err)
 			return
@@ -133,14 +125,6 @@ var addProjectCmd = &cobra.Command{
 			log.Printf("❌ Error loading config: %v\n", err)
 			os.Exit(1)
 		}
-
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
 
 		// Load notes from JSON
 		notes, noteJsonPath, err := store.LoadNotes(*config)
@@ -205,14 +189,6 @@ var listProjectCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
-
 		projects, _, err := store.LoadProjects(*config)
 		if err != nil {
 			log.Printf("❌ Error loading notes from JSON: %v", err)
@@ -273,14 +249,6 @@ var showProjectCmd = &cobra.Command{
 			log.Printf("❌ Error loading config: %v\n", err)
 			os.Exit(1)
 		}
-
-		// // Perform cleanup tasks
-		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
-		// }
-		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
-		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
-		// }
 
 		projects, _, err := store.LoadProjects(*config)
 		if err != nil {
