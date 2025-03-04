@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nakachan-ing/ztl-cli/internal/model"
 	"gopkg.in/yaml.v3"
@@ -263,5 +264,32 @@ func DeleteNotePermanently(noteID string, config model.Config) error {
 
 	fmt.Printf("✅ Note %s permanently deleted\n", noteID)
 
+	return nil
+}
+
+func BackupNote(notePath string, backupDir string) error {
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
+	t := time.Now()
+	now := fmt.Sprintf("%d%02d%02dT%02d%02d%02d",
+		t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+
+	base := filepath.Base(notePath)
+	id := strings.TrimSuffix(base, filepath.Ext(base))
+
+	backupFilename := fmt.Sprintf("%s_%s.md", id, now)
+	backupPath := filepath.Join(backupDir, backupFilename)
+
+	input, err := os.ReadFile(notePath)
+	if err != nil {
+		return fmt.Errorf("failed to read note file for backup: %w", err)
+	}
+
+	if err := os.WriteFile(backupPath, input, 0644); err != nil {
+		return fmt.Errorf("failed to create backup file: %w", err)
+	}
 	return nil
 }

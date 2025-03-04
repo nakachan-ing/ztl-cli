@@ -523,9 +523,9 @@ var editLiteratureCmd = &cobra.Command{
 					os.Exit(1)
 				}
 
-				// if err := backupNote(zettels[i].NotePath, config.Backup.BackupDir); err != nil {
-				// 	log.Printf("⚠️ Backup failed: %v", err)
-				// }
+				if err := store.BackupNote(filepath.Join(config.ZettelDir, notes[i].ID+".md"), config.Backup.BackupDir); err != nil {
+					log.Printf("⚠️ Backup failed: %v", err)
+				}
 
 				fmt.Printf("Found %v, opening...\n", filepath.Join(config.ZettelDir, notes[i].ID+".md"))
 				time.Sleep(2 * time.Second)
