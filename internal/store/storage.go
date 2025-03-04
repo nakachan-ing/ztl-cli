@@ -378,6 +378,7 @@ func CleanupTrash(config model.Config, retentionPeriod time.Duration) error {
 
 // Cleanup old backups
 func CleanupBackups(backupDir string, retentionPeriod time.Duration) error {
+
 	files, err := os.ReadDir(backupDir)
 	if err != nil {
 		return fmt.Errorf("❌ Failed to read backup directory: %w", err)

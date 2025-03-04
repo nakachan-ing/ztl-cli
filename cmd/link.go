@@ -69,19 +69,17 @@ func UpdateLinksJson(config model.Config) error {
 		return fmt.Errorf("❌ Failed to load notes.json: %w", err)
 	}
 
-	var links []model.Link
+	uniqueLinks := make(map[string]model.Link)
 
-	// すべてのノートを走査
 	for _, note := range notes {
 		mdFilePath := filepath.Join(config.ZettelDir, note.ID+".md")
-
 		content, err := os.ReadFile(mdFilePath)
 		if err != nil {
 			log.Printf("⚠️ Failed to read note file: %s (%v)", mdFilePath, err)
 			continue
 		}
 
-		// フロントマターからリンクを取得
+		// フロントマターを解析
 		frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(content))
 		if err != nil {
 			log.Printf("⚠️ Failed to parse front matter: %s (%v)", mdFilePath, err)
@@ -90,24 +88,31 @@ func UpdateLinksJson(config model.Config) error {
 
 		// フロントマターの `links:` を取得
 		for _, targetID := range frontMatter.Links {
-			links = append(links, model.Link{
+			key := fmt.Sprintf("%s-%s", note.ID, targetID)
+			uniqueLinks[key] = model.Link{
 				SourceNoteID: note.ID,
 				TargetNoteID: targetID,
-			})
+			}
 		}
 
-		// 本文から `[タイトル](yyyymmddhhmmss.md)` 形式のリンクを解析
+		// 本文の `[タイトル](yyyymmddhhmmss.md)` 形式のリンクを取得
 		markdownLinks := extractMarkdownLinks(string(body))
 		for _, targetID := range markdownLinks {
-			links = append(links, model.Link{
+			key := fmt.Sprintf("%s-%s", note.ID, targetID)
+			uniqueLinks[key] = model.Link{
 				SourceNoteID: note.ID,
 				TargetNoteID: targetID,
-			})
+			}
 		}
 	}
 
 	// `links.json` に保存
 	linksJsonPath := filepath.Join(config.JsonDataDir, "links.json")
+	links := make([]model.Link, 0, len(uniqueLinks))
+	for _, link := range uniqueLinks {
+		links = append(links, link)
+	}
+
 	err = store.SaveUpdatedJson(links, linksJsonPath)
 	if err != nil {
 		return fmt.Errorf("❌ Failed to update links.json: %w", err)
@@ -221,14 +226,4 @@ func init() {
 	linkCmd.AddCommand(linkListCmd)
 	rootCmd.AddCommand(linkCmd)
 	linkListCmd.Flags().StringVar(&filterTag, "tag", "", "Filter links by tag")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// linkCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// linkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
