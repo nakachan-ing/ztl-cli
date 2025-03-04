@@ -68,7 +68,7 @@ func InsertNoteToJson(note model.Note, config model.Config) error {
 
 func GetNextNoteID(notes []model.Note) string {
 	maxSeqID := 0
-	re := regexp.MustCompile(`p(\d+)`) // "pXXX" の数字部分を抽出する正規表現
+	re := regexp.MustCompile(`n(\d+)`) // "pXXX" の数字部分を抽出する正規表現
 
 	// 最大IDを取得
 	for _, note := range notes {

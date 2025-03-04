@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 
 	"github.com/nakachan-ing/ztl-cli/internal/model"
@@ -41,9 +42,8 @@ func LoadTags(config model.Config) ([]model.Tag, string, error) {
 func CreateNewTag(tags []string, config model.Config) error {
 	for i := range tags {
 		tag := model.Tag{
-			ID:    "",
-			SeqID: "",
-			Name:  tags[i],
+			ID:   "",
+			Name: tags[i],
 		}
 		err := InsertTagToJson(tag, config)
 		if err != nil {
@@ -68,8 +68,7 @@ func InsertTagToJson(tag model.Tag, config model.Config) error {
 		}
 	}
 
-	newID, newTagID := GetNextTagID(tags)
-	tag.SeqID = newID
+	newTagID := GetNextTagID(tags)
 	tag.ID = newTagID
 
 	tags = append(tags, tag)
@@ -90,14 +89,18 @@ func InsertTagToJson(tag model.Tag, config model.Config) error {
 
 }
 
-func GetNextTagID(tags []model.Tag) (string, string) {
+func GetNextTagID(tags []model.Tag) string {
 	maxSeqID := 0
+	re := regexp.MustCompile(`t(\d+)`) // "tXXX" の数字部分を抽出する正規表現
 
 	// SeqID の最大値を探す
 	for _, tag := range tags {
-		seq, err := strconv.Atoi(tag.SeqID) // SeqID を整数化
-		if err == nil && seq > maxSeqID {
-			maxSeqID = seq
+		match := re.FindStringSubmatch(tag.ID)
+		if match != nil {
+			seq, err := strconv.Atoi(match[1]) // "XXX" 部分を整数に変換
+			if err == nil && seq > maxSeqID {
+				maxSeqID = seq
+			}
 		}
 	}
 
@@ -106,7 +109,7 @@ func GetNextTagID(tags []model.Tag) (string, string) {
 
 	// 999 までは3桁ゼロ埋め、それ以上はそのまま
 	if newSeqID < 1000 {
-		return strconv.Itoa(newSeqID), fmt.Sprintf("t%03d", newSeqID) // 3桁ゼロ埋め
+		return fmt.Sprintf("t%03d", newSeqID) // 3桁ゼロ埋め
 	}
-	return strconv.Itoa(newSeqID), fmt.Sprintf("t%d", newSeqID) // 1000以上はゼロ埋めなし
+	return fmt.Sprintf("t%d", newSeqID) // 1000以上はゼロ埋めなし
 }

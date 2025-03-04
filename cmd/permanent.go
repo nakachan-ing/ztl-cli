@@ -5,9 +5,11 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -399,9 +401,117 @@ var permanentListCmd = &cobra.Command{
 	},
 }
 
+var editPermanentCmd = &cobra.Command{
+	Use:     "edit [noteID]",
+	Short:   "Edit a permanent note",
+	Args:    cobra.MaximumNArgs(1),
+	Aliases: []string{"e"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v", err)
+			os.Exit(1)
+		}
+
+		// Perform cleanup tasks
+		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
+		// }
+		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
+		// }
+
+		// Load notes from JSON
+		notes, notesJsonPath, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Error loading notes from JSON: %v", err)
+			os.Exit(1)
+		}
+
+		found := false
+		for i := range notes {
+			if noteID == notes[i].SeqID {
+
+				lockFile := filepath.Join(config.ZettelDir, notes[i].ID+".lock")
+				if err := util.CreateLockFile(lockFile); err != nil {
+					log.Printf("❌ Failed to create lock file: %v", err)
+					os.Exit(1)
+				}
+
+				// if err := backupNote(zettels[i].NotePath, config.Backup.BackupDir); err != nil {
+				// 	log.Printf("⚠️ Backup failed: %v", err)
+				// }
+
+				fmt.Printf("Found %v, opening...\n", filepath.Join(config.ZettelDir, notes[i].ID+".md"))
+				time.Sleep(2 * time.Second)
+
+				c := exec.Command(config.Editor, filepath.Join(config.ZettelDir, notes[i].ID+".md"))
+				defer os.Remove(lockFile) // Ensure lock file is deleted after editing
+				c.Stdin = os.Stdin
+				c.Stdout = os.Stdout
+				c.Stderr = os.Stderr
+				if err := c.Run(); err != nil {
+					log.Printf("❌ Failed to open editor: %v", err)
+					os.Exit(1)
+				}
+
+				mdContent, err := os.ReadFile(filepath.Join(config.ZettelDir, notes[i].ID+".md"))
+				if err != nil {
+					log.Printf("❌ Failed to read updated note file: %v", err)
+					os.Exit(1)
+				}
+
+				// Parse front matter
+				frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(mdContent))
+				if err != nil {
+					log.Printf("❌ Error parsing front matter: %v", err)
+					os.Exit(1)
+				}
+
+				frontMatter.UpdatedAt = time.Now().Format("2006-01-02 15:04:05")
+
+				notes[i].UpdatedAt = time.Now().Format("2006-01-02 15:04:05")
+
+				updatedContent := store.UpdateFrontMatter(&frontMatter, body)
+				err = os.WriteFile(filepath.Join(config.ZettelDir, notes[i].ID+".md"), []byte(updatedContent), 0644)
+				if err != nil {
+					log.Printf("❌ Error writing updated note file: %v", err)
+				}
+
+				notes[i].Title = frontMatter.Title
+				// notes[i].Links = frontMatter.Links
+				notes[i].UpdatedAt = time.Now().Format("2006-01-02 15:04:05")
+				notes[i].Content = body
+
+				updatedJson, err := json.MarshalIndent(notes, "", "  ")
+				if err != nil {
+					log.Printf("❌ Failed to convert updated notes to JSON: %v", err)
+					os.Exit(1)
+				}
+
+				// Write back to `zettel.json`
+				if err := os.WriteFile(notesJsonPath, updatedJson, 0644); err != nil {
+					log.Printf("❌ Failed to write updated notes to JSON file: %v", err)
+					os.Exit(1)
+				}
+
+				fmt.Println("✅ Note metadata updated successfully:", notesJsonPath)
+
+				found = true
+				break
+			}
+		}
+		if !found {
+			log.Printf("❌ Note with ID %s not found", noteID)
+		}
+	},
+}
+
 func init() {
 	permanentCmd.AddCommand(newPermanentCmd)
 	permanentCmd.AddCommand(permanentListCmd)
+	permanentCmd.AddCommand(editPermanentCmd)
 	rootCmd.AddCommand(permanentCmd)
 	newPermanentCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Specify tags")
 	permanentListCmd.Flags().StringSliceVarP(&permanentTags, "tag", "t", []string{}, "Filter by tags")
