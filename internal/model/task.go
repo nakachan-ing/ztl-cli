@@ -7,14 +7,15 @@ type Task struct {
 }
 
 type TaskFrontMatter struct {
-	ID        string   `yaml:"id"`
-	Title     string   `yaml:"title"`
-	Tags      []string `yaml:"tags"`
-	Links     []string `yaml:"links"`
-	Project   string   `yaml:"project"`
-	Status    string   `yaml:"status"`
-	CreatedAt string   `yaml:"created_at"`
-	UpdatedAt string   `yaml:"updated_at"`
-	Archived  bool     `yaml:"archived"`
-	Deleted   bool     `yaml:"deleted"`
+	ID          string   `yaml:"id"`
+	Title       string   `yaml:"title"`
+	NoteType    string   `yaml:"note_type"` // fleeting, permanent, literature
+	Tags        []string `yaml:"tags"`
+	Links       []string `yaml:"links"`
+	ProjectName string   `yaml:"project_name"`
+	Status      string   `yaml:"status"`
+	CreatedAt   string   `yaml:"created_at"`
+	UpdatedAt   string   `yaml:"updated_at"`
+	Archived    bool     `yaml:"archived"`
+	Deleted     bool     `yaml:"deleted"`
 }

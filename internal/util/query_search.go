@@ -111,12 +111,12 @@ func FilterNotes(notes []model.Note, tags []string, fromDate, toDate string, not
 
 	for _, note := range notes {
 		// タグのフィルタリング（noteTagDisplay を使用）
-		if len(tags) > 0 && !hasTags(noteTagDisplay[note.ID], tags) {
+		if len(tags) > 0 && !HasTags(noteTagDisplay[note.ID], tags) {
 			continue
 		}
 
 		// 日付のフィルタリング
-		if !isWithinDateRange(note.CreatedAt, fromDate, toDate) {
+		if !IsWithinDateRange(note.CreatedAt, fromDate, toDate) {
 			continue
 		}
 
@@ -127,7 +127,7 @@ func FilterNotes(notes []model.Note, tags []string, fromDate, toDate string, not
 }
 
 // 指定されたタグが含まれているかチェック
-func hasTags(noteTags []string, filterTags []string) bool {
+func HasTags(noteTags []string, filterTags []string) bool {
 	for _, filterTag := range filterTags {
 		for _, noteTag := range noteTags {
 			if strings.EqualFold(noteTag, filterTag) {
@@ -139,7 +139,7 @@ func hasTags(noteTags []string, filterTags []string) bool {
 }
 
 // 日付が指定範囲内かチェック
-func isWithinDateRange(noteDateTime string, fromDate, toDate string) bool {
+func IsWithinDateRange(noteDateTime string, fromDate, toDate string) bool {
 	noteDate := strings.Split(noteDateTime, " ")[0]
 
 	// 日付が空の場合はフィルターしない
