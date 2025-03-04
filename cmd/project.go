@@ -163,7 +163,8 @@ var addProjectCmd = &cobra.Command{
 					os.Exit(1)
 				}
 
-				frontMatter, body, err := store.ParseFrontMatter(string(content))
+				// var noteFM model.NoteFrontMatter
+				frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(content))
 				if err != nil {
 					log.Printf("❌ Error parsing front matter: %v", err)
 					os.Exit(1)

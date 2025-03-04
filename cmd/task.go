@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/glamour"
+	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/nakachan-ing/ztl-cli/internal/model"
@@ -28,6 +31,7 @@ var taskSearchQuery string
 var taskPageSize int
 var taskTrash bool
 var taskArchive bool
+var taskMeta bool
 
 func createNewTask(taskTitle string, config model.Config) (string, model.Note, error) {
 	t := time.Now()
@@ -205,86 +209,6 @@ var listTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// // ノートIDごとにノートデータをマッピング
-		// noteMap := make(map[string]model.Note)
-		// for _, note := range notes {
-		// 	noteMap[note.ID] = note
-		// }
-
-		// // タスクIDごとにタスクデータをマッピング（ノート情報も含める）
-		// taskMap := make(map[string]model.Task)
-		// for _, task := range tasks {
-		// 	if note, exists := noteMap[task.NoteID]; exists {
-		// 		task.NoteID = note.ID // ノートIDをセット
-		// 		taskMap[task.ID] = task
-		// 	} else {
-		// 		fmt.Printf("⚠️ Warning: Note with ID %s not found for task %s\n", task.NoteID, task.ID)
-		// 	}
-		// }
-
-		// // ノートIDごとにタイトル、作成日、更新日をマッピング
-		// noteMetaMap := make(map[string]struct {
-		// 	Title     string
-		// 	CreatedAt string
-		// 	UpdatedAt string
-		// })
-
-		// for _, note := range notes {
-		// 	noteMetaMap[note.ID] = struct {
-		// 		Title     string
-		// 		CreatedAt string
-		// 		UpdatedAt string
-		// 	}{
-		// 		Title:     note.Title,
-		// 		CreatedAt: note.CreatedAt,
-		// 		UpdatedAt: note.UpdatedAt,
-		// 	}
-		// }
-
-		// // タグID → タグ名のマッピング
-		// tagMap := make(map[string]string)
-		// for _, tag := range tags {
-		// 	tagMap[tag.ID] = tag.Name
-		// }
-
-		// // ノートIDごとにタグ名のリストを作成
-		// noteTagMap := make(map[string][]string)
-		// for _, noteTag := range noteTags {
-		// 	if tagName, exists := tagMap[noteTag.TagID]; exists {
-		// 		noteTagMap[noteTag.NoteID] = append(noteTagMap[noteTag.NoteID], tagName)
-		// 	}
-		// }
-
-		// // テーブル作成
-		// t := table.NewWriter()
-		// t.SetOutputMirror(os.Stdout)
-		// t.SetStyle(table.StyleDouble)
-		// t.AppendHeader(table.Row{
-		// 	text.FgGreen.Sprintf("Task ID"), text.FgGreen.Sprintf("%s", text.Bold.Sprintf("Title")),
-		// 	text.FgGreen.Sprintf("Tags"),
-		// 	text.FgGreen.Sprintf("Status"),
-		// 	text.FgGreen.Sprintf("Created"),
-		// 	text.FgGreen.Sprintf("Updated"),
-		// })
-
-		// // マッピングしたデータを表示
-		// for _, task := range taskMap {
-		// 	// `note_id` からタイトル, 作成日, 更新日を取得
-		// 	meta, exists := noteMetaMap[task.NoteID]
-		// 	if !exists {
-		// 		meta.Title = "(Unknown Note)"
-		// 		meta.CreatedAt = "-"
-		// 		meta.UpdatedAt = "-"
-		// 	}
-
-		// 	// `note_id` からタグ名を取得
-		// 	tagStr := strings.Join(noteTagMap[task.NoteID], ", ")
-
-		// 	t.AppendRow(table.Row{task.ID, meta.Title, tagStr, task.Status, meta.CreatedAt, meta.UpdatedAt})
-		// }
-
-		// t.Render()
-
 		// ノートIDごとに `model.Note` をマッピング
 		noteMap := make(map[string]model.Note)
 		for _, note := range notes {
@@ -453,9 +377,199 @@ var listTaskCmd = &cobra.Command{
 	},
 }
 
+var updateTaskCmd = &cobra.Command{
+	Use:   "update [title]",
+	Short: "Update task status",
+	Args:  cobra.ExactArgs(2),
+	// Aliases: []string{""},
+	Run: func(cmd *cobra.Command, args []string) {
+		taskID := args[0]
+		updatedStatus := args[1]
+
+		if updatedStatus == "" {
+			log.Fatalf("❌ Error: --status flag is required")
+		}
+
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		// // Perform cleanup tasks
+		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
+		// }
+		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
+		// }
+
+		// `tasks.json` をロード
+		tasks, taskJsonPath, err := store.LoadTasks(*config)
+		if err != nil {
+			log.Printf("❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		notes, noteJsonPath, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Error loading notes from JSON: %v", err)
+			os.Exit(1)
+		}
+
+		found := false
+		for i, task := range tasks {
+			if task.ID == taskID {
+				// `status` を更新
+				tasks[i].Status = updatedStatus
+				found = true
+
+				// ノートの `updated_at` も更新
+				for j, note := range notes {
+					if note.ID == task.NoteID {
+						content, err := os.ReadFile(filepath.Join(config.ZettelDir, notes[j].ID+".md"))
+						if err != nil {
+							log.Printf("❌ Failed to read updated note file: %v", err)
+							os.Exit(1)
+						}
+						frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(content))
+						if err != nil {
+							log.Printf("❌ Error parsing front matter: %v", err)
+							os.Exit(1)
+						}
+						notes[j].UpdatedAt = time.Now().Format("2006-01-02 15:04:05")
+						frontMatter.Status = updatedStatus
+
+						updatedContent := store.UpdateFrontMatter(&frontMatter, body)
+
+						err = os.WriteFile(filepath.Join(config.ZettelDir, notes[j].ID+".md"), []byte(updatedContent), 0644)
+						if err != nil {
+							log.Printf("❌ Error writing updated note file: %v", err)
+							return
+						}
+
+						// `tasks.json` を更新
+						err = store.SaveUpdatedJson(tasks, taskJsonPath)
+						if err != nil {
+							log.Printf("❌ Error updating JSON file: %v", err)
+							return
+						}
+
+						err = store.SaveUpdatedJson(notes, noteJsonPath)
+						if err != nil {
+							log.Printf("❌ Error updating JSON file: %v", err)
+							return
+						}
+
+						break
+					}
+				}
+
+				break
+			}
+		}
+
+		if !found {
+			log.Printf("❌ Task with ID %s not found", taskID)
+		}
+
+		fmt.Printf("✅ Task %s status updated to %s\n", taskID, updatedStatus)
+
+	},
+}
+
+var showTaskCmd = &cobra.Command{
+	Use:     "show [Task ID]",
+	Short:   "Show task detail",
+	Args:    cobra.ExactArgs(1),
+	Aliases: []string{"s"},
+	Run: func(cmd *cobra.Command, args []string) {
+		taskID := args[0]
+
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Printf("❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		// // Perform cleanup tasks
+		// if err := internal.CleanupBackups(config.Backup.BackupDir, time.Duration(config.Backup.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Backup cleanup failed: %v", err)
+		// }
+		// if err := internal.CleanupTrash(config.Trash.TrashDir, time.Duration(config.Trash.Retention)*24*time.Hour); err != nil {
+		// 	log.Printf("⚠️ Trash cleanup failed: %v", err)
+		// }
+
+		// `tasks.json` をロード
+		tasks, _, err := store.LoadTasks(*config)
+		if err != nil {
+			log.Printf("❌ Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		var noteID string
+		found := false
+
+		for _, task := range tasks {
+			if task.ID == taskID {
+				noteID = task.NoteID
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			log.Printf("❌ Task with ID %s not found", taskID)
+		}
+
+		mdFilePath := filepath.Join(config.ZettelDir, noteID+".md")
+
+		if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
+			log.Printf("❌ Markdown file not found: %s", mdFilePath)
+		}
+
+		// Markdown ファイルを読み込んで表示
+		mdContent, err := os.ReadFile(mdFilePath)
+		if err != nil {
+			log.Printf("❌ Failed to read updated note file: %v", err)
+		}
+
+		titleStyle := color.New(color.FgCyan, color.Bold).SprintFunc()
+		frontMatterStyle := color.New(color.FgHiGreen).SprintFunc()
+
+		frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(mdContent))
+		if err != nil {
+			log.Printf("❌ Error parsing front matter: %v", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("[%v] %v\n", titleStyle(frontMatter.ID), titleStyle(frontMatter.Title))
+		fmt.Println(strings.Repeat("-", 50))
+		fmt.Printf("Type: %v\n", frontMatterStyle(frontMatter.NoteType))
+		fmt.Printf("Tags: %v\n", frontMatterStyle(frontMatter.Tags))
+		fmt.Printf("Links: %v\n", frontMatterStyle(frontMatter.Links))
+		fmt.Printf("Task status: %v\n", frontMatterStyle(frontMatter.Status))
+		fmt.Printf("Created at: %v\n", frontMatterStyle(frontMatter.CreatedAt))
+		fmt.Printf("Updated at: %v\n", frontMatterStyle(frontMatter.UpdatedAt))
+
+		// Render Markdown content unless --meta flag is used
+		if !taskMeta {
+			renderedContent, err := glamour.Render(body, "dark")
+			if err != nil {
+				log.Printf("⚠️ Failed to render markdown content: %v", err)
+			} else {
+				fmt.Println(renderedContent)
+			}
+		}
+
+	},
+}
+
 func init() {
 	taskCmd.AddCommand(newTaskCmd)
 	taskCmd.AddCommand(listTaskCmd)
+	taskCmd.AddCommand(updateTaskCmd)
+	taskCmd.AddCommand(showTaskCmd)
 	rootCmd.AddCommand(taskCmd)
 	newTaskCmd.Flags().StringSliceVarP(&taskTags, "tag", "t", []string{}, "Specify tags")
 	listTaskCmd.Flags().StringVar(&status, "status", "", "Filter by status")
@@ -466,6 +580,7 @@ func init() {
 	listTaskCmd.Flags().IntVar(&taskPageSize, "limit", 20, "Set the number of notes to display per page (-1 for all)")
 	listTaskCmd.Flags().BoolVar(&taskTrash, "trash", false, "Show deleted notes")
 	listTaskCmd.Flags().BoolVar(&taskArchive, "archive", false, "Show archived notes")
+	showTaskCmd.Flags().BoolVar(&taskMeta, "meta", false, "Show only metadata without note content")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

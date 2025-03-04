@@ -100,30 +100,31 @@ func InsertNoteToJson(note model.Note, config model.Config) error {
 // 	return nil
 // }
 
-func ParseFrontMatter(content string) (model.NoteFrontMatter, string, error) {
+func ParseFrontMatter[T any](content string) (T, string, error) {
+	var frontMatter T
+
 	if !strings.HasPrefix(content, "---") {
-		return model.NoteFrontMatter{}, content, fmt.Errorf("❌ Front matter not found")
+		return frontMatter, content, fmt.Errorf("❌ Front matter not found")
 	}
 
 	parts := strings.SplitN(content, "---", 3)
 	if len(parts) < 3 {
-		return model.NoteFrontMatter{}, content, fmt.Errorf("❌ Invalid front matter format")
+		return frontMatter, content, fmt.Errorf("❌ Invalid front matter format")
 	}
 
 	frontMatterStr := strings.TrimSpace(parts[1])
 	body := strings.TrimSpace(parts[2])
 
 	// Parse YAML
-	var frontMatter model.NoteFrontMatter
 	err := yaml.Unmarshal([]byte(frontMatterStr), &frontMatter)
 	if err != nil {
-		return model.NoteFrontMatter{}, content, fmt.Errorf("❌ Failed to parse front matter: %w", err)
+		return frontMatter, content, fmt.Errorf("❌ Failed to parse front matter: %w", err)
 	}
 
 	return frontMatter, body, nil
 }
 
-func UpdateFrontMatter(frontMatter *model.NoteFrontMatter, body string) string {
+func UpdateFrontMatter[T any](frontMatter T, body string) string {
 	// Convert to YAML
 	frontMatterBytes, err := yaml.Marshal(frontMatter)
 	if err != nil {
@@ -135,8 +136,8 @@ func UpdateFrontMatter(frontMatter *model.NoteFrontMatter, body string) string {
 	return fmt.Sprintf("---\n%s---\n\n%s", string(frontMatterBytes), body)
 }
 
-func SaveUpdatedJson(notes []model.Note, jsonPath string) error {
-	updatedJson, err := json.MarshalIndent(notes, "", "  ")
+func SaveUpdatedJson[T any](v []T, jsonPath string) error {
+	updatedJson, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return fmt.Errorf("❌ Failed to convert to JSON: %w", err)
 	}
