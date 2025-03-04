@@ -25,3 +25,7 @@ type NoteFrontMatter struct {
 	Archived    bool     `yaml:"archived"`
 	Deleted     bool     `yaml:"deleted"`
 }
+
+func (n *NoteFrontMatter) SetDeleted() {
+	n.Deleted = true
+}

@@ -19,3 +19,7 @@ type TaskFrontMatter struct {
 	Archived    bool     `yaml:"archived"`
 	Deleted     bool     `yaml:"deleted"`
 }
+
+func (t *TaskFrontMatter) SetDeleted() {
+	t.Deleted = true
+}

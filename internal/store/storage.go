@@ -141,3 +141,8 @@ func SaveUpdatedJson[T any](v []T, jsonPath string) error {
 	log.Printf("✅ Successfully updated JSON file: %s", jsonPath)
 	return nil
 }
+
+func UpdateDeletedToFrontMatter[T model.Deletable](frontMatter T) T {
+	frontMatter.SetDeleted()
+	return frontMatter
+}
