@@ -182,26 +182,52 @@ var sourceShowCmd = &cobra.Command{
 			log.Fatalf("❌ Error loading config: %v", err)
 		}
 
+		// `sources.json` をロード
 		sources, _, err := store.LoadSources(*config)
 		if err != nil {
 			log.Printf("❌ Failed to load sources.json: %v", err)
 		}
 
+		// `notes.json` をロード（タイトル取得用）
+		notes, _, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load notes.json: %v", err)
+		}
+
+		// `source_notes.json` をロード
+		sourceNotes, _, err := store.LoadSourceNotes(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load source_notes.json: %v", err)
+		}
+
+		// 指定された `sourceID` の情報を取得
 		var source model.Source
 		found := false
-		for i := range sources {
-			if sources[i].SourceID == sourceID {
-				source = sources[i]
+		for _, s := range sources {
+			if s.SourceID == sourceID {
+				source = s
 				found = true
 				break
 			}
 		}
-
 		if !found {
 			log.Printf("❌ Source ID '%s' not found", sourceID)
-			os.Exit(1)
 		}
 
+		// 関連ノートを取得
+		var relatedNotes []model.Note
+		for _, sn := range sourceNotes {
+			if sn.SourceID == sourceID {
+				for _, n := range notes {
+					if n.SeqID == sn.NoteID {
+						relatedNotes = append(relatedNotes, n)
+						break
+					}
+				}
+			}
+		}
+
+		// 出力
 		fmt.Printf("📖 %s\n", source.Title)
 		fmt.Println(strings.Repeat("─", len(source.Title)+3))
 		fmt.Printf("Type:      %s\n", source.SourceType)
@@ -211,6 +237,12 @@ var sourceShowCmd = &cobra.Command{
 		if source.URL != "" {
 			fmt.Printf("URL:       %s\n", source.URL)
 		}
+		fmt.Println("\n📖 Related Notes:")
+
+		for _, note := range relatedNotes {
+			fmt.Printf("- [%s](%s.md)\n", note.Title, note.ID)
+		}
+
 		fmt.Println()
 
 	},
@@ -277,11 +309,146 @@ var sourceEditCmd = &cobra.Command{
 	},
 }
 
+var sourceAddNoteCmd = &cobra.Command{
+	Use:     "add-note",
+	Short:   "Add note to source",
+	Args:    cobra.ExactArgs(2),
+	Aliases: []string{"an"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteID := args[0]
+		sourceID := args[0]
+
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Fatalf("❌ Error loading config: %v", err)
+		}
+
+		sources, _, err := store.LoadSources(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load sources.json: %v", err)
+		}
+
+		notes, _, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load sources.json: %v", err)
+		}
+
+		sourceNotes, sourceNotesJsonPath, err := store.LoadSourceNotes(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load source_notes.json: %v", err)
+		}
+
+		foundSource := false
+		for _, s := range sources {
+			if s.SourceID == sourceID {
+				foundSource = true
+				break
+			}
+		}
+		if !foundSource {
+			log.Printf("❌ Source ID '%s' not found", sourceID)
+		}
+
+		var noteTitle string
+		foundNote := false
+		for i := range notes {
+			if notes[i].SeqID == noteID {
+				noteTitle = notes[i].Title
+				foundNote = true
+				break
+			}
+		}
+		if !foundNote {
+			log.Printf("❌ Note ID '%s' not found", noteID)
+		}
+
+		for _, sn := range sourceNotes {
+			if sn.SourceID == sourceID && sn.NoteID == noteID {
+				log.Printf("⚠️ Note %s is already linked to source %s", noteID, sourceID)
+			}
+		}
+
+		sourceNotes = append(sourceNotes, model.SourceNote{SourceID: sourceID, NoteID: noteID})
+
+		// `source_notes.json` を保存
+		err = store.SaveUpdatedJson(sourceNotes, sourceNotesJsonPath)
+		if err != nil {
+			log.Printf("❌ Failed to update source_notes.json: %v", err)
+		}
+
+		log.Printf("✅ Note '%s' (%s) added to source '%s'!", noteID, noteTitle, sourceID)
+
+	},
+}
+
+var sourceRemoveNoteCmd = &cobra.Command{
+	Use:     "remove-note",
+	Short:   "Remove note from source",
+	Args:    cobra.ExactArgs(2),
+	Aliases: []string{"rmn"},
+	Run: func(cmd *cobra.Command, args []string) {
+		noteSeqID := args[0]
+		sourceID := args[0]
+
+		config, err := store.LoadConfig()
+		if err != nil {
+			log.Fatalf("❌ Error loading config: %v", err)
+		}
+
+		notes, _, err := store.LoadNotes(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load sources.json: %v", err)
+		}
+
+		sourceNotes, sourceNotesJsonPath, err := store.LoadSourceNotes(*config)
+		if err != nil {
+			log.Printf("❌ Failed to load source_notes.json: %v", err)
+		}
+
+		var noteID string
+		foundNote := false
+		for i := range notes {
+			if notes[i].SeqID == noteSeqID {
+				noteID = notes[i].ID
+				foundNote = true
+				break
+			}
+		}
+		if !foundNote {
+			log.Printf("❌ Note ID '%s' not found in notes.json", noteSeqID)
+		}
+
+		var updatedSourceNotes []model.SourceNote
+		found := false
+		for _, sn := range sourceNotes {
+			if sn.SourceID == sourceID && sn.NoteID == noteID {
+				found = true
+				continue // 削除する
+			}
+			updatedSourceNotes = append(updatedSourceNotes, sn)
+		}
+
+		if !found {
+			log.Printf("⚠️ Note %s is not linked to source %s", noteSeqID, sourceID)
+		}
+
+		err = store.SaveUpdatedJson(updatedSourceNotes, sourceNotesJsonPath)
+		if err != nil {
+			log.Printf("❌ Failed to update source_notes.json: %v", err)
+		}
+
+		log.Printf("✅ Note '%s' removed from source '%s'!", noteSeqID, sourceID)
+
+	},
+}
+
 func init() {
 	sourceCmd.AddCommand(sourceNewCmd)
 	sourceCmd.AddCommand(sourceListCmd)
 	sourceCmd.AddCommand(sourceShowCmd)
 	sourceCmd.AddCommand(sourceEditCmd)
+	sourceCmd.AddCommand(sourceAddNoteCmd)
+	sourceCmd.AddCommand(sourceRemoveNoteCmd)
 	rootCmd.AddCommand(sourceCmd)
 	sourceNewCmd.Flags().StringVar(&sourceType, "type", "", "Source type (book, web, paper, video)")
 	sourceNewCmd.Flags().StringVar(&sourceTitle, "title", "", "Title of the source")
