@@ -21,6 +21,7 @@ type Config struct {
 		Platform   string   `yaml:"platform"`
 		Bucket     string   `yaml:"bucket"`
 		AWSProfile string   `yaml:"aws_profile"`
+		AWSRegion  string   `yaml:"aws_region"`
 		Include    []string `yaml:"include"`
 		Exclude    []string `yaml:"exclude"`
 	}

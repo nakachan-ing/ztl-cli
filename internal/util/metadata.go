@@ -166,7 +166,7 @@ func DownloadMetadataFromS3(s3Client *s3.Client, config model.Config, dirType st
 func SyncFilesToS3(ztlConfig model.Config, direction string, fileList []string) error {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithSharedConfigProfile(ztlConfig.Sync.AWSProfile),
-		config.WithRegion("ap-northeast-1"),
+		config.WithRegion(ztlConfig.Sync.AWSRegion),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)

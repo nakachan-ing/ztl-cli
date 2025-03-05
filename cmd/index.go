@@ -171,7 +171,7 @@ func linkIndexToSource(noteID, sourceID string, config model.Config) error {
 // indexCmd represents the index command
 var indexCmd = &cobra.Command{
 	Use:   "index",
-	Short: "A brief description of your command",
+	Short: "Manage index notes",
 	Args:  cobra.MaximumNArgs(1),
 }
 

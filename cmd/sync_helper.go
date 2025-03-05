@@ -15,7 +15,7 @@ import (
 func SyncWithS3(ztlConfig *model.Config, direction string) error {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithSharedConfigProfile(ztlConfig.Sync.AWSProfile),
-		config.WithRegion("ap-northeast-1"),
+		config.WithRegion(ztlConfig.Sync.AWSRegion),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
@@ -56,7 +56,7 @@ func SyncWithS3(ztlConfig *model.Config, direction string) error {
 func ShowSyncStatus(ztlConfig model.Config) error {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithSharedConfigProfile(ztlConfig.Sync.AWSProfile),
-		config.WithRegion("ap-northeast-1"),
+		config.WithRegion(ztlConfig.Sync.AWSRegion),
 	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)

@@ -26,12 +26,13 @@ var newYear int
 // sourceCmd represents the source command
 var sourceCmd = &cobra.Command{
 	Use:   "source",
-	Short: "A brief description of your command",
+	Short: "Manage sources (book, web, paper, video)",
 }
 
 var sourceNewCmd = &cobra.Command{
-	Use:   "new",
-	Short: "Add a new source (book, web, paper, video)",
+	Use:     "new",
+	Short:   "Add a new source (book, web, paper, video)",
+	Aliases: []string{"n"},
 	Run: func(cmd *cobra.Command, args []string) {
 		if sourceTitle == "" {
 			log.Fatalf("❌ You must specify a title with --title")

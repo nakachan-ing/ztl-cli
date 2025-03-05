@@ -41,7 +41,7 @@ func generateFieldList() []string {
 		"ZettelDir", "Editor", "JsonDataDir", "ArchiveDir",
 		"Backup.Enable", "Backup.Frequency", "Backup.Retention", "Backup.BackupDir",
 		"Trash.Frequency", "Trash.Retention", "Trash.TrashDir",
-		"Sync.Enable", "Sync.Platform", "Sync.Bucket", "Sync.AWSProfile", "Sync.Include", "Sync.Exclude",
+		"Sync.Enable", "Sync.Platform", "Sync.Bucket", "Sync.AWSProfile", "Sync.AWSRegion", "Sync.Include", "Sync.Exclude",
 		"Save & Exit",
 	}
 }
@@ -164,6 +164,8 @@ func (m Model) getFieldValue(field string) string {
 		return m.config.Sync.Bucket
 	case "Sync.AWSProfile":
 		return m.config.Sync.AWSProfile
+	case "Sync.AWSRegion":
+		return m.config.Sync.AWSRegion
 	case "Sync.Include":
 		return strings.Join(m.config.Sync.Include, ", ")
 	case "Sync.Exclude":
@@ -221,6 +223,8 @@ func (m *Model) updateConfig() {
 		m.config.Sync.Bucket = newValue
 	case "Sync.AWSProfile":
 		m.config.Sync.AWSProfile = newValue
+	case "Sync.AWSRegion":
+		m.config.Sync.AWSRegion = newValue
 	case "Sync.Include":
 		m.config.Sync.Include = strings.Split(newValue, ", ")
 	case "Sync.Exclude":
