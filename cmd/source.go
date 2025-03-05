@@ -313,10 +313,10 @@ var sourceAddNoteCmd = &cobra.Command{
 	Use:     "add-note",
 	Short:   "Add note to source",
 	Args:    cobra.ExactArgs(2),
-	Aliases: []string{"an"},
+	Aliases: []string{"a-n"},
 	Run: func(cmd *cobra.Command, args []string) {
-		noteID := args[0]
-		sourceID := args[0]
+		noteSeqID := args[0]
+		sourceID := args[1]
 
 		config, err := store.LoadConfig()
 		if err != nil {
@@ -339,8 +339,8 @@ var sourceAddNoteCmd = &cobra.Command{
 		}
 
 		foundSource := false
-		for _, s := range sources {
-			if s.SourceID == sourceID {
+		for i := range sources {
+			if sources[i].SourceID == sourceID {
 				foundSource = true
 				break
 			}
@@ -350,16 +350,18 @@ var sourceAddNoteCmd = &cobra.Command{
 		}
 
 		var noteTitle string
+		var noteID string
 		foundNote := false
 		for i := range notes {
-			if notes[i].SeqID == noteID {
+			if notes[i].SeqID == noteSeqID {
 				noteTitle = notes[i].Title
+				noteID = notes[i].ID
 				foundNote = true
 				break
 			}
 		}
 		if !foundNote {
-			log.Printf("❌ Note ID '%s' not found", noteID)
+			log.Printf("❌ Note ID '%s' not found", noteSeqID)
 		}
 
 		for _, sn := range sourceNotes {
@@ -385,10 +387,10 @@ var sourceRemoveNoteCmd = &cobra.Command{
 	Use:     "remove-note",
 	Short:   "Remove note from source",
 	Args:    cobra.ExactArgs(2),
-	Aliases: []string{"rmn"},
+	Aliases: []string{"rm-n"},
 	Run: func(cmd *cobra.Command, args []string) {
 		noteSeqID := args[0]
-		sourceID := args[0]
+		sourceID := args[1]
 
 		config, err := store.LoadConfig()
 		if err != nil {

@@ -9,14 +9,14 @@ import (
 )
 
 func LoadSourceNotes(config model.Config) ([]model.SourceNote, string, error) {
-	sourceNotesJsonPath := filepath.Join(config.JsonDataDir, "note_tags.json")
+	sourceNotesJsonPath := filepath.Join(config.JsonDataDir, "source_notes.json")
 
 	// ディレクトリがない場合は作成
 	if err := os.MkdirAll(config.JsonDataDir, 0755); err != nil {
 		return nil, "", fmt.Errorf("❌ Failed to create json data directory: %w", err)
 	}
 
-	// tags.json が存在しない場合、空の JSON 配列 `[]` で初期化
+	// sources_notes.json が存在しない場合、空の JSON 配列 `[]` で初期化
 	if _, err := os.Stat(sourceNotesJsonPath); os.IsNotExist(err) {
 		if err := os.WriteFile(sourceNotesJsonPath, []byte("[]"), 0644); err != nil {
 			return nil, "", fmt.Errorf("❌ Failed to create tags.json file: %w", err)
