@@ -14,7 +14,7 @@ func OpenEditor(filePath string, config model.Config) error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	if err := c.Run(); err != nil {
-		return fmt.Errorf("failed to open editor (%s): %w\n", filePath, err)
+		return fmt.Errorf("failed to open editor (%s): %w", filePath, err)
 	}
 	return nil
 }
