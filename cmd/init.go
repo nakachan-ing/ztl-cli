@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/nakachan-ing/ztl-cli/internal/model"
+	"github.com/nakachan-ing/ztl-cli/internal/store"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -19,7 +20,14 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize config.yaml",
 	Run: func(cmd *cobra.Command, args []string) {
-		configDir := filepath.Join(os.Getenv("HOME"), ".config", "ztl")
+
+		configPath, err := store.GetConfigPath()
+		if err != nil {
+			log.Printf("failed to get config path: %v", err)
+		}
+
+		configDir := filepath.Dir(configPath)
+
 		configFile := filepath.Join(configDir, "config.yaml")
 
 		// `~/.config/ztl/` を作成

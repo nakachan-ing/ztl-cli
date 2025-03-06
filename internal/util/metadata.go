@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/nakachan-ing/ztl-cli/internal/model"
 )
@@ -163,44 +162,47 @@ func DownloadMetadataFromS3(s3Client *s3.Client, config model.Config, dirType st
 	return metadata, nil
 }
 
-func SyncFilesToS3(ztlConfig model.Config, direction string, fileList []string) error {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithSharedConfigProfile(ztlConfig.Sync.AWSProfile),
-		config.WithRegion(ztlConfig.Sync.AWSRegion),
-	)
+func SyncFilesToS3(config model.Config, direction string, fileList []string) error {
+	s3Client, err := NewS3Client(config)
 	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
+		return fmt.Errorf("❌ Failed to initialize S3 client: %w", err)
 	}
-	s3Client := s3.NewFromConfig(cfg)
 
-	bucket := ztlConfig.Sync.Bucket
+	bucket := config.Sync.Bucket
 
 	for _, file := range fileList {
+		var s3Key string
 		var localPath string
 
 		// `notes/` の場合は `ZettelDir` を基準にする
-		cleanFile := filepath.Clean(file)
+		// cleanFile := filepath.Clean(file)
 
-		if strings.HasPrefix(cleanFile, "notes"+string(os.PathSeparator)) {
-			localPath = filepath.Join(ztlConfig.ZettelDir, filepath.Base(cleanFile))
-		} else if strings.HasPrefix(cleanFile, "json"+string(os.PathSeparator)) {
-			localPath = filepath.Join(ztlConfig.JsonDataDir, filepath.Base(cleanFile))
+		if strings.HasPrefix(file, "notes/") || strings.HasSuffix(file, ".md") {
+			localPath = filepath.Join(config.ZettelDir, file)
+			s3Key = "notes/" + filepath.Base(file)
+		} else if strings.HasPrefix(file, "json/") || strings.HasSuffix(file, ".json") {
+			localPath = filepath.Join(config.JsonDataDir, file)
+			s3Key = "json/" + filepath.Base(file)
 		} else {
 			log.Printf("⚠️ Unknown file category: %s", file)
 			continue
 		}
 
-		s3Key := file // S3 側のキーもそのまま
+		if direction == "push" {
+			err = UploadToS3(s3Client, bucket, localPath, s3Key)
+			if err != nil {
+				log.Printf("❌ Failed to upload %s: %v", file, err)
+			} else {
+				log.Printf("✅ Uploaded: %s", file)
+			}
+		}
 
 		if direction == "pull" {
-			err := DownloadFromS3(s3Client, bucket, s3Key, localPath)
+			err = DownloadFromS3(s3Client, bucket, s3Key, localPath)
 			if err != nil {
-				log.Printf("⚠️ Failed to download %s: %v", file, err)
-			}
-		} else if direction == "push" {
-			err := UploadToS3(s3Client, bucket, localPath, s3Key)
-			if err != nil {
-				log.Printf("⚠️ Failed to upload %s: %v", file, err)
+				log.Printf("❌ Failed to download %s: %v", file, err)
+			} else {
+				log.Printf("✅ Downloaded: %s", file)
 			}
 		}
 	}

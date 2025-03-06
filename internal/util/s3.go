@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/nakachan-ing/ztl-cli/internal/model"
 )
 
 // UploadToS3 - ローカルファイルを S3 にアップロード
@@ -69,4 +71,18 @@ func DownloadFromS3(s3Client *s3.Client, bucket, s3Key string, localPath string)
 func isNotFoundErr(err error) bool {
 	var s3Err *types.NoSuchKey
 	return errors.As(err, &s3Err)
+}
+
+func NewS3Client(ztlConfig model.Config) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithSharedConfigProfile(ztlConfig.Sync.AWSProfile),
+		config.WithRegion(ztlConfig.Sync.AWSRegion),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load SDK config, %v", err)
+	}
+
+	s3Client := s3.NewFromConfig(cfg)
+
+	return s3Client, nil
 }
