@@ -552,6 +552,7 @@ var editFleetingCmd = &cobra.Command{
 				}
 
 				notes[i].Title = frontMatter.Title
+				notes[i].NoteType = frontMatter.NoteType
 				// notes[i].Links = frontMatter.Links
 				notes[i].UpdatedAt = time.Now().Format("2006-01-02 15:04:05")
 				notes[i].Content = body
