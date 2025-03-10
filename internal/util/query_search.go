@@ -1,16 +1,11 @@
 package util
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/nakachan-ing/ztl-cli/internal/model"
-	"github.com/nakachan-ing/ztl-cli/internal/store"
 )
 
 func FullTextSearch(notes []model.Note, query string) []model.Note {
@@ -18,91 +13,19 @@ func FullTextSearch(notes []model.Note, query string) []model.Note {
 		return notes
 	}
 
-	// ripgrep が使えるなら、それで全文検索（推奨）
-	if isRipgrepAvailable() {
-		return searchWithRipgrep(notes, query)
-	}
-
-	// ripgrep がない場合は、Go でファイルを1つずつ開いて検索
-	return searchWithGo(notes, query)
-}
-
-// ripgrep の有無を確認
-func isRipgrepAvailable() bool {
-	_, err := exec.LookPath("rg")
-	return err == nil
-}
-
-// ripgrep を使った全文検索（高速）
-func searchWithRipgrep(notes []model.Note, query string) []model.Note {
-	config, err := store.LoadConfig()
-	if err != nil {
-		log.Printf("❌ Error loading config: %v", err)
-		return nil
-	}
-
-	cmd := exec.Command("rg", "--ignore-case", "--files-with-matches", query)
-
-	// メモファイルのパスを ripgrep に渡す
-	var paths []string
-	for _, note := range notes {
-		paths = append(paths, filepath.Join(config.ZettelDir, note.ID+".md"))
-	}
-	cmd.Args = append(cmd.Args, paths...)
-
-	out, err := cmd.Output()
-	if err != nil {
-		log.Printf("❌ Error running ripgrep: %v", err)
-		return nil
-	}
-
-	// ripgrep の結果に含まれるファイルだけを `filteredNotes` に追加
-	matchedPaths := strings.Split(strings.TrimSpace(string(out)), "\n")
+	query = strings.ToLower(query) // 大文字小文字を無視
 	var filteredNotes []model.Note
-	for _, note := range notes {
-		if contains(matchedPaths, filepath.Join(config.ZettelDir, note.ID+".md")) {
-			filteredNotes = append(filteredNotes, note)
-		}
-	}
-
-	fmt.Printf("📌 Debug: Ripgrep found %d matching notes\n", len(filteredNotes))
-	return filteredNotes
-}
-
-// Go でファイルを開いて検索（遅いが代替手段）
-func searchWithGo(notes []model.Note, query string) []model.Note {
-	var filteredNotes []model.Note
-	config, err := store.LoadConfig()
-	if err != nil {
-		log.Printf("❌ Error loading config: %v", err)
-		return nil
-	}
 
 	for _, note := range notes {
-		content, err := os.ReadFile(filepath.Join(config.ZettelDir, note.ID+".md"))
-		if err != nil {
-			log.Printf("❌ Error reading file %s: %v", filepath.Join(config.ZettelDir, note.ID+".md"), err)
-			continue
-		}
-
 		// タイトルまたは本文に `query` が含まれているかチェック
-		if strings.Contains(strings.ToLower(note.Title), strings.ToLower(query)) ||
-			strings.Contains(strings.ToLower(string(content)), strings.ToLower(query)) {
+		if strings.Contains(strings.ToLower(note.Title), query) ||
+			strings.Contains(strings.ToLower(note.Content), query) {
 			filteredNotes = append(filteredNotes, note)
 		}
 	}
 
-	fmt.Printf("📌 Debug: Go search found %d matching notes\n", len(filteredNotes))
+	log.Printf("📌 Debug: Found %d matching notes in JSON\n", len(filteredNotes))
 	return filteredNotes
-}
-
-func contains(slice []string, item string) bool {
-	for _, val := range slice {
-		if val == item {
-			return true
-		}
-	}
-	return false
 }
 
 // ノートのフィルター処理（タグ + 日付）
