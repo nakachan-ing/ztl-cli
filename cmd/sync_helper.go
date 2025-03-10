@@ -17,106 +17,115 @@ func SyncWithS3(config model.Config, direction string) error {
 	}
 
 	if direction == "pull" {
-		// S3 から `metadata.json` を取得
+		log.Println("🔄 Downloading metadata from S3...")
+
+		// **S3 から `metadata.json` を取得**
 		remoteMetadataNotes, err := util.DownloadMetadataFromS3(s3Client, config, "notes")
 		if err != nil {
-			return fmt.Errorf("❌ Failed to download metadata.json for notes: %w", err)
+			return fmt.Errorf("❌ Failed to download metadata_notes.json from S3: %w", err)
 		}
 		remoteMetadataJson, err := util.DownloadMetadataFromS3(s3Client, config, "json")
 		if err != nil {
-			return fmt.Errorf("❌ Failed to download metadata.json for json: %w", err)
+			return fmt.Errorf("❌ Failed to download metadata_json.json from S3: %w", err)
 		}
 
-		// ローカルの `metadata.json` をロード
-		localMetadataNotes, _ := util.LoadMetadata(filepath.Join(config.ZettelDir, "metadata.json"))
-		localMetadataJson, _ := util.LoadMetadata(filepath.Join(config.JsonDataDir, "metadata.json"))
+		// **ローカルの `metadata.json` をロード**
+		localMetadataNotes, _ := util.LoadMetadata(filepath.Join(config.ZettelDir, "metadata_notes.json"))
+		localMetadataJson, _ := util.LoadMetadata(filepath.Join(config.JsonDataDir, "metadata_json.json"))
 
-		// `notes/` の変更を取得
+		// **差分を取得**
 		notesDiff := util.DetectChanges(localMetadataNotes, remoteMetadataNotes, "s3")
-
-		// `json/` の変更を取得
 		jsonDiff := util.DetectChanges(localMetadataJson, remoteMetadataJson, "s3")
 
-		// 変更があるファイルのみ取得
+		// **変更があるファイルのみダウンロード**
 		fileList := append(notesDiff, jsonDiff...)
 		if len(fileList) == 0 {
 			log.Println("✅ No changes detected. Everything is up-to-date.")
-			return nil
+		} else {
+			log.Println("🔄 Downloading changed files from S3...")
+			err = util.SyncFilesToS3(config, "pull", fileList)
+			if err != nil {
+				return fmt.Errorf("❌ Sync failed: %w", err)
+			}
 		}
 
-		log.Println("🔄 Syncing files from S3...")
-		err = util.SyncFilesToS3(config, "pull", fileList)
+		// **ローカルの `metadata.json` を更新**
+		log.Println("🔄 Saving updated metadata...")
+		err = util.SaveMetadata(filepath.Join(config.ZettelDir, "metadata_notes.json"), remoteMetadataNotes)
 		if err != nil {
-			return fmt.Errorf("❌ Sync failed: %w", err)
+			return fmt.Errorf("❌ Failed to save metadata_notes.json: %w", err)
+		}
+		err = util.SaveMetadata(filepath.Join(config.JsonDataDir, "metadata_json.json"), remoteMetadataJson)
+		if err != nil {
+			return fmt.Errorf("❌ Failed to save metadata_json.json: %w", err)
 		}
 
 		log.Println("✅ Sync completed successfully.")
 		return nil
 
 	} else if direction == "push" {
-		// ローカルの `metadata.json` を生成
+		log.Println("🔄 Generating metadata for push...")
+
+		// **ローカルの `metadata.json` を生成**
 		localMetadataNotes, err := util.GenerateMetadata(config.ZettelDir)
 		if err != nil {
-			return fmt.Errorf("❌ Failed to generate metadata.json for notes: %w", err)
+			return fmt.Errorf("❌ Failed to generate metadata_notes.json: %w", err)
 		}
 		localMetadataJson, err := util.GenerateMetadata(config.JsonDataDir)
 		if err != nil {
-			return fmt.Errorf("❌ Failed to generate metadata.json for json: %w", err)
+			return fmt.Errorf("❌ Failed to generate metadata_json.json: %w", err)
 		}
 
-		// `metadata.json` をローカルに保存
-		err = util.SaveMetadata(filepath.Join(config.ZettelDir, "metadata.json"), localMetadataNotes)
+		// **`metadata.json` をローカルに保存**
+		err = util.SaveMetadata(filepath.Join(config.ZettelDir, "metadata_notes.json"), localMetadataNotes)
 		if err != nil {
-			return fmt.Errorf("❌ Failed to save metadata.json for notes: %w", err)
+			return fmt.Errorf("❌ Failed to save metadata_notes.json: %w", err)
 		}
-		err = util.SaveMetadata(filepath.Join(config.JsonDataDir, "metadata.json"), localMetadataJson)
+		err = util.SaveMetadata(filepath.Join(config.JsonDataDir, "metadata_json.json"), localMetadataJson)
 		if err != nil {
-			return fmt.Errorf("❌ Failed to save metadata.json for json: %w", err)
+			return fmt.Errorf("❌ Failed to save metadata_json.json: %w", err)
 		}
 
-		// S3 から `metadata.json` を取得
+		// // **S3 から `metadata.json` を取得**
 		remoteMetadataNotes, err := util.DownloadMetadataFromS3(s3Client, config, "notes")
 		if err != nil {
-			return fmt.Errorf("❌ Failed to download metadata.json for notes: %w", err)
+			return fmt.Errorf("❌ Failed to download metadata_notes.json from S3: %w", err)
 		}
 		remoteMetadataJson, err := util.DownloadMetadataFromS3(s3Client, config, "json")
 		if err != nil {
-			return fmt.Errorf("❌ Failed to download metadata.json for json: %w", err)
+			return fmt.Errorf("❌ Failed to download metadata_json.json from S3: %w", err)
 		}
 
-		// `notes/` の変更を取得
+		// // **差分を取得**
 		notesDiff := util.DetectChanges(localMetadataNotes, remoteMetadataNotes, "local")
-
-		// `json/` の変更を取得
 		jsonDiff := util.DetectChanges(localMetadataJson, remoteMetadataJson, "local")
 
-		// 変更があるファイルのみアップロード
+		// // **変更があるファイルのみアップロード**
 		fileList := append(notesDiff, jsonDiff...)
 		if len(fileList) == 0 {
 			log.Println("✅ No changes detected. Everything is up-to-date.")
-			return nil
+		} else {
+			log.Println("🔄 Uploading changed files to S3...")
+			err = util.SyncFilesToS3(config, "push", fileList)
+			if err != nil {
+				return fmt.Errorf("❌ Sync failed: %w", err)
+			}
 		}
 
-		log.Println("🔄 Uploading changed files to S3...")
-		err = util.SyncFilesToS3(config, "push", fileList)
-		if err != nil {
-			return fmt.Errorf("❌ Sync failed: %w", err)
-		}
-
-		// `metadata.json` を S3 にアップロード
+		// // **`metadata.json` を S3 にアップロード**
+		log.Println("🔄 Uploading metadata to S3...")
 		err = util.UploadMetadataToS3(s3Client, config, "notes")
 		if err != nil {
-			return fmt.Errorf("❌ Failed to upload metadata.json for notes: %w", err)
+			return fmt.Errorf("❌ Failed to upload metadata_notes.json: %w", err)
 		}
 		err = util.UploadMetadataToS3(s3Client, config, "json")
 		if err != nil {
-			return fmt.Errorf("❌ Failed to upload metadata.json for json: %w", err)
+			return fmt.Errorf("❌ Failed to upload metadata_json.json: %w", err)
 		}
 
 		log.Println("✅ Sync completed successfully.")
 		return nil
 	}
-
 	return fmt.Errorf("❌ Unknown sync direction: %s", direction)
 }
 

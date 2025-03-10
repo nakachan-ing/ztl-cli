@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -20,19 +19,32 @@ import (
 func GenerateMetadata(dir string) (map[string]string, error) {
 	metadata := make(map[string]string)
 
-	files, err := filepath.Glob(filepath.Join(dir, "*"))
-	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to scan directory: %w", err)
-	}
-
-	for _, filePath := range files {
-		info, err := os.Stat(filePath)
+	// **ディレクトリを再帰的に探索**
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Printf("⚠️ Failed to get file info: %s (%v)", filePath, err)
-			continue
+			log.Printf("⚠️ Failed to access path: %s (%v)", path, err)
+			return nil
 		}
 
-		metadata[filepath.Base(filePath)] = info.ModTime().Format(time.RFC3339)
+		// **ディレクトリはスキップ**
+		if info.IsDir() {
+			return nil
+		}
+
+		// **dir からの相対パスをキーにする**
+		relPath, err := filepath.Rel(dir, path)
+		if err != nil {
+			log.Printf("⚠️ Failed to get relative path for: %s (%v)", path, err)
+			return nil
+		}
+
+		// **ファイルの最終更新時刻を取得**
+		metadata[relPath] = info.ModTime().Format(time.RFC3339)
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("❌ Failed to scan directory: %w", err)
 	}
 
 	return metadata, nil
@@ -77,26 +89,28 @@ func UploadMetadataToS3(s3Client *s3.Client, config model.Config, dirType string
 	var metadataPath string
 	var s3Key string
 
-	// ディレクトリタイプに応じてパスを設定
+	// **ディレクトリタイプに応じてパスを設定**
 	switch dirType {
 	case "notes":
-		metadataPath = filepath.Join(config.ZettelDir, "metadata.json")
-		s3Key = "notes/metadata.json"
+		metadataPath = filepath.Join(config.ZettelDir, "metadata_notes.json")
+		s3Key = "notes/metadata_notes.json"
 	case "json":
-		metadataPath = filepath.Join(config.JsonDataDir, "metadata.json")
-		s3Key = "json/metadata.json"
+		metadataPath = filepath.Join(config.JsonDataDir, "metadata_json.json")
+		s3Key = "json/metadata_json.json"
 	default:
 		return fmt.Errorf("❌ Invalid directory type: %s", dirType)
 	}
 
-	// ファイルを開く
+	// **ファイルを開く**
 	file, err := os.Open(metadataPath)
 	if err != nil {
 		return fmt.Errorf("❌ Failed to open %s: %w", metadataPath, err)
 	}
 	defer file.Close()
 
-	// S3 にアップロード
+	log.Printf("🔄 Uploading %s to S3...", s3Key)
+
+	// **S3 にアップロード**
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(config.Sync.Bucket),
 		Key:    aws.String(s3Key),
@@ -117,11 +131,11 @@ func DownloadMetadataFromS3(s3Client *s3.Client, config model.Config, dirType st
 	// ディレクトリタイプに応じてパスを設定
 	switch dirType {
 	case "notes":
-		metadataPath = filepath.Join(config.ZettelDir, "metadata.json")
-		s3Key = "notes/metadata.json"
+		metadataPath = filepath.Join(config.ZettelDir, "metadata_notes.json")
+		s3Key = "notes/metadata_notes.json"
 	case "json":
-		metadataPath = filepath.Join(config.JsonDataDir, "metadata.json")
-		s3Key = "json/metadata.json"
+		metadataPath = filepath.Join(config.JsonDataDir, "metadata_json.json")
+		s3Key = "json/metadata_json.json"
 	default:
 		return nil, fmt.Errorf("❌ Invalid directory type: %s", dirType)
 	}
@@ -162,83 +176,59 @@ func DownloadMetadataFromS3(s3Client *s3.Client, config model.Config, dirType st
 	return metadata, nil
 }
 
-func SyncFilesToS3(config model.Config, direction string, fileList []string) error {
-	s3Client, err := NewS3Client(config)
-	if err != nil {
-		return fmt.Errorf("❌ Failed to initialize S3 client: %w", err)
-	}
-
-	bucket := config.Sync.Bucket
-
-	for _, file := range fileList {
-		var s3Key string
-		var localPath string
-
-		// `notes/` の場合は `ZettelDir` を基準にする
-		// cleanFile := filepath.Clean(file)
-
-		if strings.HasPrefix(file, "notes/") || strings.HasSuffix(file, ".md") {
-			localPath = filepath.Join(config.ZettelDir, file)
-			s3Key = "notes/" + filepath.Base(file)
-		} else if strings.HasPrefix(file, "json/") || strings.HasSuffix(file, ".json") {
-			localPath = filepath.Join(config.JsonDataDir, file)
-			s3Key = "json/" + filepath.Base(file)
-		} else {
-			log.Printf("⚠️ Unknown file category: %s", file)
-			continue
-		}
-
-		if direction == "push" {
-			err = UploadToS3(s3Client, bucket, localPath, s3Key)
-			if err != nil {
-				log.Printf("❌ Failed to upload %s: %v", file, err)
-			} else {
-				log.Printf("✅ Uploaded: %s", file)
-			}
-		}
-
-		if direction == "pull" {
-			err = DownloadFromS3(s3Client, bucket, s3Key, localPath)
-			if err != nil {
-				log.Printf("❌ Failed to download %s: %v", file, err)
-			} else {
-				log.Printf("✅ Downloaded: %s", file)
-			}
-		}
-	}
-
-	return nil
-}
-
 func DetectChanges(localMeta, remoteMeta map[string]string, source string) []string {
 	var filesToSync []string
 
-	// nil チェックを追加（panic 回避）
-	if localMeta == nil {
-		localMeta = make(map[string]string)
-	}
-	if remoteMeta == nil {
-		remoteMeta = make(map[string]string)
+	// **ローカル vs S3 の比較**
+	for file, remoteTimeStr := range remoteMeta {
+		// **metadata.json は比較対象外**
+		if file == "metadata.json" {
+			continue
+		}
+
+		localTimeStr, exists := localMeta[file]
+
+		// **ローカルに存在しないファイル (S3 にあるがローカルにない)**
+		if !exists {
+			log.Printf("📌 File missing locally, adding to sync (pull): %s", file)
+			filesToSync = append(filesToSync, file)
+			continue
+		}
+
+		// **タイムスタンプ比較**
+		remoteTime, err := time.Parse(time.RFC3339, remoteTimeStr)
+		if err != nil {
+			log.Printf("⚠️ Failed to parse remote timestamp for %s: %v", file, err)
+			continue
+		}
+
+		localTime, err := time.Parse(time.RFC3339, localTimeStr)
+		if err != nil {
+			log.Printf("⚠️ Failed to parse local timestamp for %s: %v", file, err)
+			continue
+		}
+
+		// **S3 の方が新しければ pull**
+		if source == "s3" && remoteTime.After(localTime.Add(1*time.Second)) {
+			log.Printf("📌 Newer version on S3, adding to sync (pull): %s", file)
+			filesToSync = append(filesToSync, file)
+		}
+
+		// **ローカルの方が新しければ push**
+		if source == "local" && localTime.After(remoteTime.Add(1*time.Second)) {
+			log.Printf("📌 Newer version locally, adding to sync (push): %s", file)
+			filesToSync = append(filesToSync, file)
+		}
 	}
 
-	if source == "s3" {
-		// S3 の方が新しい場合、ダウンロード対象
-		for file, remoteTime := range remoteMeta {
-			localTime, exists := localMeta[file]
-			if !exists || localTime < remoteTime {
+	// **ローカルにあるが S3 にないファイルを追加 (push の場合)**
+	if source == "local" {
+		for file := range localMeta {
+			if _, exists := remoteMeta[file]; !exists {
+				log.Printf("📌 File missing on S3, adding to sync (push): %s", file)
 				filesToSync = append(filesToSync, file)
 			}
 		}
-	} else if source == "local" {
-		// ローカルの方が新しい場合、アップロード対象
-		for file, localTime := range localMeta {
-			remoteTime, exists := remoteMeta[file]
-			if !exists || remoteTime < localTime {
-				filesToSync = append(filesToSync, file)
-			}
-		}
-	} else {
-		log.Printf("⚠️ Unknown source type: %s", source)
 	}
 
 	return filesToSync
