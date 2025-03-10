@@ -18,6 +18,8 @@ import (
 )
 
 var filterTag string
+var filterOnlyLinked bool
+var filterQuery string
 
 func filterLinksByTag(links []model.Link, tag string, config model.Config) ([]model.Link, error) {
 	// ノートとタグの対応関係を取得
@@ -142,10 +144,22 @@ func displayLinks(links []model.Link, config model.Config) error {
 		return fmt.Errorf("❌ Failed to load notes.json: %w", err)
 	}
 
-	// ノートID → タイトルのマッピングを作成
+	// ノートID → タイトルのマッピング
 	noteTitleMap := make(map[string]string)
 	for _, note := range notes {
 		noteTitleMap[note.ID] = note.Title
+	}
+
+	// ノートごとにリンクを整理
+	noteLinks := make(map[string][]string)
+	noteBacklinks := make(map[string][]string)
+
+	for _, link := range links {
+		// 順方向リンク
+		noteLinks[link.SourceNoteID] = append(noteLinks[link.SourceNoteID], fmt.Sprintf("%s (%s)", link.TargetNoteID, noteTitleMap[link.TargetNoteID]))
+
+		// 逆方向リンク（バックリンク）
+		noteBacklinks[link.TargetNoteID] = append(noteBacklinks[link.TargetNoteID], fmt.Sprintf("%s (%s)", link.SourceNoteID, noteTitleMap[link.SourceNoteID]))
 	}
 
 	if len(links) == 0 {
@@ -153,9 +167,9 @@ func displayLinks(links []model.Link, config model.Config) error {
 		return nil
 	}
 
-	fmt.Println(strings.Repeat("=", 30))
+	fmt.Println(strings.Repeat("=", 80))
 	fmt.Printf("Zettelkasten: %v links shown\n", len(links))
-	fmt.Println(strings.Repeat("=", 30))
+	fmt.Println(strings.Repeat("=", 80))
 
 	// テーブル作成
 	t := table.NewWriter()
@@ -164,17 +178,34 @@ func displayLinks(links []model.Link, config model.Config) error {
 	t.Style().Options.SeparateRows = false
 
 	// ヘッダー
-	t.AppendHeader(table.Row{"SOURCE NOTE ID", "TARGET NOTE ID", "SOURCE TITLE", "TARGET TITLE"})
+	t.AppendHeader(table.Row{"NOTE ID", "TITLE", "LINKS (→)", "BACKLINKS (←)"})
 
-	// リンクをテーブルに追加
-	for _, link := range links {
-		sourceTitle := noteTitleMap[link.SourceNoteID]
-		targetTitle := noteTitleMap[link.TargetNoteID]
-		t.AppendRow([]interface{}{link.SourceNoteID, link.TargetNoteID, sourceTitle, targetTitle})
+	// ノートごとにテーブルに追加
+	for noteID, title := range noteTitleMap {
+		linksStr := formatMultiline(noteLinks[noteID])
+		backlinksStr := formatMultiline(noteBacklinks[noteID])
+
+		// **フィルタリング処理**
+		if filterOnlyLinked && linksStr == "-" && backlinksStr == "-" {
+			continue // リンクがないノートはスキップ
+		}
+		if filterQuery != "" && !strings.Contains(strings.ToLower(title), strings.ToLower(filterQuery)) {
+			continue // タイトル検索
+		}
+
+		t.AppendRow([]interface{}{noteID, title, linksStr, backlinksStr})
 	}
 
 	t.Render()
 	return nil
+}
+
+// リンクを改行区切りでフォーマット
+func formatMultiline(links []string) string {
+	if len(links) == 0 {
+		return "-"
+	}
+	return strings.Join(links, "\n")
 }
 
 // linkCmd represents the link command
@@ -226,4 +257,6 @@ func init() {
 	linkCmd.AddCommand(linkListCmd)
 	rootCmd.AddCommand(linkCmd)
 	linkListCmd.Flags().StringVar(&filterTag, "tag", "", "Filter links by tag")
+	linkListCmd.Flags().StringVar(&filterQuery, "query", "", "Filter links by title query")
+	linkListCmd.Flags().BoolVar(&filterOnlyLinked, "only-linked", false, "Show only notes with links")
 }
