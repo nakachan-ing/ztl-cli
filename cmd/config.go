@@ -39,9 +39,9 @@ func newModel(config model.Config) tea.Model {
 func generateFieldList() []string {
 	return []string{
 		"ZettelDir", "Editor", "JsonDataDir", "ArchiveDir",
-		"Backup.Enable", "Backup.Frequency", "Backup.Retention", "Backup.BackupDir",
+		"Backup.Frequency", "Backup.Retention", "Backup.BackupDir",
 		"Trash.Frequency", "Trash.Retention", "Trash.TrashDir",
-		"Sync.Enable", "Sync.Platform", "Sync.Bucket", "Sync.AWSProfile", "Sync.AWSRegion", "Sync.Include", "Sync.Exclude",
+		"Sync.Platform", "Sync.Bucket", "Sync.AWSProfile", "Sync.AWSRegion",
 		"Save & Exit",
 	}
 }
@@ -142,8 +142,6 @@ func (m Model) getFieldValue(field string) string {
 		return m.config.JsonDataDir
 	case "ArchiveDir":
 		return m.config.ArchiveDir
-	case "Backup.Enable":
-		return strconv.FormatBool(m.config.Backup.Enable)
 	case "Backup.Frequency":
 		return strconv.Itoa(m.config.Backup.Frequency)
 	case "Backup.Retention":
@@ -156,8 +154,6 @@ func (m Model) getFieldValue(field string) string {
 		return strconv.Itoa(m.config.Trash.Retention)
 	case "Trash.TrashDir":
 		return m.config.Trash.TrashDir
-	case "Sync.Enable":
-		return strconv.FormatBool(m.config.Sync.Enable)
 	case "Sync.Platform":
 		return m.config.Sync.Platform
 	case "Sync.Bucket":
@@ -166,10 +162,6 @@ func (m Model) getFieldValue(field string) string {
 		return m.config.Sync.AWSProfile
 	case "Sync.AWSRegion":
 		return m.config.Sync.AWSRegion
-	case "Sync.Include":
-		return strings.Join(m.config.Sync.Include, ", ")
-	case "Sync.Exclude":
-		return strings.Join(m.config.Sync.Exclude, ", ")
 	default:
 		return "UNKNOWN"
 	}
@@ -189,10 +181,6 @@ func (m *Model) updateConfig() {
 		m.config.JsonDataDir = newValue
 	case "ArchiveDir":
 		m.config.ArchiveDir = newValue
-	case "Backup.Enable":
-		if newBool, err := strconv.ParseBool(newValue); err == nil {
-			m.config.Backup.Enable = newBool
-		}
 	case "Backup.Frequency":
 		if newInt, err := strconv.Atoi(newValue); err == nil {
 			m.config.Backup.Frequency = newInt
@@ -213,10 +201,6 @@ func (m *Model) updateConfig() {
 		}
 	case "Trash.TrashDir":
 		m.config.Trash.TrashDir = newValue
-	case "Sync.Enable":
-		if newBool, err := strconv.ParseBool(newValue); err == nil {
-			m.config.Sync.Enable = newBool
-		}
 	case "Sync.Platform":
 		m.config.Sync.Platform = newValue
 	case "Sync.Bucket":
@@ -225,10 +209,6 @@ func (m *Model) updateConfig() {
 		m.config.Sync.AWSProfile = newValue
 	case "Sync.AWSRegion":
 		m.config.Sync.AWSRegion = newValue
-	case "Sync.Include":
-		m.config.Sync.Include = strings.Split(newValue, ", ")
-	case "Sync.Exclude":
-		m.config.Sync.Exclude = strings.Split(newValue, ", ")
 	}
 
 	// 設定を保存

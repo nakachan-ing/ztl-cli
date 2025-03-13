@@ -17,13 +17,10 @@ type Config struct {
 		TrashDir  string `yaml:"trash_dir"`
 	}
 	Sync struct {
-		Enable     bool     `yaml:"enable"`
-		Platform   string   `yaml:"platform"`
-		Bucket     string   `yaml:"bucket"`
-		AWSProfile string   `yaml:"aws_profile"`
-		AWSRegion  string   `yaml:"aws_region"`
-		Include    []string `yaml:"include"`
-		Exclude    []string `yaml:"exclude"`
+		Platform   string `yaml:"platform"`
+		Bucket     string `yaml:"bucket"`
+		AWSProfile string `yaml:"aws_profile"`
+		AWSRegion  string `yaml:"aws_region"`
 	}
 }
 
