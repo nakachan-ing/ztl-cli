@@ -209,7 +209,7 @@ var listProjectCmd = &cobra.Command{
 		}
 
 		fmt.Println(strings.Repeat("=", 30))
-		fmt.Printf("Zettelkasten: %v projects shown\n", len(projectNotes))
+		fmt.Printf("Zettelkasten: %v projects shown\n", len(projects))
 		fmt.Println(strings.Repeat("=", 30))
 
 		t := table.NewWriter()
