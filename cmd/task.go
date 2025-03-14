@@ -94,7 +94,7 @@ func createNewTask(taskTitle string, config model.Config) (string, model.Note, e
 	task := model.Task{
 		ID:     "",
 		NoteID: noteId,
-		Status: "Not Started",
+		Status: "Not started",
 	}
 
 	err = store.InsertTaskToJson(task, config)
@@ -322,7 +322,7 @@ var newTaskCmd = &cobra.Command{
 			log.Printf("❌ Failed to read Markdown file: %v", err)
 		}
 
-		frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(mdContent))
+		frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(mdContent))
 		if err != nil {
 			log.Printf("⚠️ Failed to parse front matter for %s: %v", newTaskStr, err)
 			body = string(mdContent) // フロントマターの解析に失敗した場合、全文をセット
@@ -339,6 +339,7 @@ var newTaskCmd = &cobra.Command{
 			if note.ID == noteID {
 				notes[i].Title = frontMatter.Title
 				notes[i].NoteType = frontMatter.NoteType
+				notes[i].Status = frontMatter.Status
 				notes[i].Content = body
 				notes[i].UpdatedAt = time.Now().Format("2006-01-02 15:04:05") // 更新日時も更新
 				found = true
