@@ -459,7 +459,7 @@ var showLiteratureCmd = &cobra.Command{
 		titleStyle := color.New(color.FgCyan, color.Bold).SprintFunc()
 		frontMatterStyle := color.New(color.FgHiGreen).SprintFunc()
 
-		frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(mdContent))
+		frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(mdContent))
 		if err != nil {
 			log.Printf("❌ Error parsing front matter: %v", err)
 			os.Exit(1)
@@ -470,7 +470,6 @@ var showLiteratureCmd = &cobra.Command{
 		fmt.Printf("Type: %v\n", frontMatterStyle(frontMatter.NoteType))
 		fmt.Printf("Tags: %v\n", frontMatterStyle(frontMatter.Tags))
 		fmt.Printf("Links: %v\n", frontMatterStyle(frontMatter.Links))
-		fmt.Printf("Task status: %v\n", frontMatterStyle(frontMatter.Status))
 		fmt.Printf("Created at: %v\n", frontMatterStyle(frontMatter.CreatedAt))
 		fmt.Printf("Updated at: %v\n", frontMatterStyle(frontMatter.UpdatedAt))
 
@@ -549,7 +548,7 @@ var editLiteratureCmd = &cobra.Command{
 				}
 
 				// Parse front matter
-				frontMatter, body, err := store.ParseFrontMatter[model.TaskFrontMatter](string(mdContent))
+				frontMatter, body, err := store.ParseFrontMatter[model.NoteFrontMatter](string(mdContent))
 				if err != nil {
 					log.Printf("❌ Error parsing front matter: %v", err)
 					os.Exit(1)

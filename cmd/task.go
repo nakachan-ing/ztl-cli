@@ -515,7 +515,9 @@ var listTaskCmd = &cobra.Command{
 			t.Style().Options.SeparateRows = false
 
 			t.AppendHeader(table.Row{
-				text.FgGreen.Sprintf("Task ID"), text.FgGreen.Sprintf("%s", text.Bold.Sprintf("Title")),
+				text.FgGreen.Sprintf("Task ID"),
+				text.FgGreen.Sprintf("Note ID"),
+				text.FgGreen.Sprintf("%s", text.Bold.Sprintf("Title")),
 				text.FgGreen.Sprintf("Tags"),
 				text.FgGreen.Sprintf("Status"),
 				text.FgGreen.Sprintf("Created"), text.FgGreen.Sprintf("Updated"),
@@ -544,6 +546,7 @@ var listTaskCmd = &cobra.Command{
 
 				t.AppendRow(table.Row{
 					row.Task.ID,
+					row.Note.SeqID,
 					note.Title,
 					tagStr,
 					statusColored,
@@ -638,12 +641,33 @@ var updateTaskCmd = &cobra.Command{
 						frontMatter.Status = updatedStatus
 
 						updatedContent := store.UpdateFrontMatter(&frontMatter, body)
-
 						err = os.WriteFile(filepath.Join(config.ZettelDir, notes[j].ID+".md"), []byte(updatedContent), 0644)
 						if err != nil {
 							log.Printf("❌ Error writing updated note file: %v", err)
 							return
 						}
+
+						notes[j].Title = frontMatter.Title
+						notes[j].Status = frontMatter.Status
+						notes[j].Content = body
+
+						updatedJson, err := json.MarshalIndent(notes, "", "  ")
+						if err != nil {
+							log.Printf("❌ Failed to convert updated notes to JSON: %v", err)
+							os.Exit(1)
+						}
+
+						// Write back to `zettel.json`
+						if err := os.WriteFile(noteJsonPath, updatedJson, 0644); err != nil {
+							log.Printf("❌ Failed to write updated notes to JSON file: %v", err)
+							os.Exit(1)
+						}
+
+						fmt.Println("✅ Note metadata updated successfully:", noteJsonPath)
+
+						found = true
+						break
+
 					}
 				}
 			}

@@ -6,6 +6,7 @@ type Note struct {
 	Title       string `json:"title"`
 	NoteType    string `json:"note_type"` // fleeting, permanent, literature
 	ProjectName string `json:"project_name"`
+	Status      string `json:"status"`
 	Content     string `json:"content"`
 	CreatedAt   string `json:"created_at"` // yyyy-mm-dd hh:mm:ss
 	UpdatedAt   string `json:"updated_at"` // yyyy-mm-dd hh:mm:ss
